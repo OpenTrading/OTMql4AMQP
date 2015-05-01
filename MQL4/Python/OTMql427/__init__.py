@@ -62,8 +62,8 @@ def sPySafeEval(sPyCode):
         sys.exc_clear()
         return sRetval
 
-    if sRetval.find('ERROR:') == 0:
-        sys.exc_clear()
+    #? if sRetval.find('ERROR:') == 0: sys.exc_clear()
+    
     return sRetval
 
 

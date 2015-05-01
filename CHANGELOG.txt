@@ -1,3 +1,13 @@
+commit 4544dd12070da1ed45297c01801c83337441f002
+Date:   Tue Apr 28 16:45:44 2015 +0300
+
+    First Python code checkin.
+
+commit 3da983b2bb3d11ea0e2981b4cff6fc224f91d526
+Date:   Tue Apr 28 16:16:17 2015 +0300
+
+    Initial commit.
+
 commit 0382dfcb69deefd09caa530d782a14b5dfba2034
 Date:   Tue Apr 28 13:07:24 2015 +0000
 

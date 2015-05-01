@@ -5,13 +5,29 @@
 This module can be run from the command line to test RabbitMQ
 by listening to the broker for messages sent by a speaker
 such as PikaChart.py. Give  --help to see the options.
+
+We will only have on Pika Connection for any given process, so
+we assign the connection object to the module variable oCONNECTION.
 """
+oCONNECTION = None
+
 
 import sys, logging
 import time
+import threading
+import Queue
+
 import pika
 
-oLOG = logging.getLogger(__name__)
+# The callme server is optional and may not be installed.
+# But it might be a whole lot of fun it it works.
+# It has prerequisities: kombu httplib2
+try:
+    import callme
+except ImportError:
+    callme = None
+    
+oLOG = logging
 
 class PikaMixin(object):
 
@@ -21,14 +37,17 @@ class PikaMixin(object):
     def __init__(self, **dParams):
 
         self.oSpeakerChannel = None
-        self.oListenerChannel = None
+        self.oListenerThread = None
+        self.sName = dParams.get('sName', "")
         self.iSpeakerPort = dParams.get('iSpeakerPort', 5672)
         self.iListenerPort = dParams.get('iListenerPort', 5672)
         self.sHostaddress = dParams.get('sHostaddress', '127.0.0.1')
         # I think really this should be program PID specific
+        # I think we want one exchange per terminal process
         self.sExchangeName = dParams.get('sExchangeName', 'Mt4')
         self.sUsername = dParams.get('sUsername', 'guest')
         self.sPassword = dParams.get('sPassword', 'guest')
+        # I think really this should be Mt4 specific - for permissions
         self.sVirtualHost = dParams.get('sVirtualHost', '/')
         self.iDebugLevel = dParams.get('iDebugLevel', 4)
 
@@ -40,33 +59,78 @@ class PikaMixin(object):
         self.oProperties = pika.BasicProperties(content_type=self.sContentType,
                                                 delivery_mode=self.iDeliveryMode)
         self.oConnection = None
+        self.oQueue = Queue.Queue()
         
     def oCreateConnection(self):
-        global oENGINE
+        global oCONNECTION
         if not self.oConnection:
-            oConnection = pika.BlockingConnection(self.oParameters)
-            assert oConnection
-            self.oConnection = oConnection
-            oENGINE = oConnection
+            try:
+                oConnection = pika.BlockingConnection(self.oParameters)
+                assert oConnection
+                self.oConnection = oConnection
+                oCONNECTION = oConnection
+            except Exception, e:
+                oLOG.exception("Error in oCreateConnection " + str(e))
+                raise
+            
         return self.oConnection
+    
+    def eHeartBeat(self, sChartName, sIgnore=""):
+        """
+        The heartbeat is usually called from the Mt4 OnTimer.
+        We push a simple Print exec command onto the queue of things
+        for Mt4 to do. This way we get a message in the Log,
+        but with a string made in Python.
+        """
+        sTopic = 'exec'
+        sMark = "%15.5f" % time.time()
+        sMess = "%s|%s|0|%s|Print|PY: %s" % (sTopic, sChartName, sMark, sMark,)
+        if self.oQueue.empty():
+            # only push if there is nothing to do
+            self.eMt4PushQueue(sMess)
+            
+        # while we are here flush stdout so we can read the log file
+        # whilst the program is running
+        sys.stdout.flush()
+        sys.stderr.flush()
+        return sMess
+    
+    def zMt4PopQueue(self, sChartName):
+        """
+        The PopQueue is usually called from the Mt4 OnTimer.
+        We it is a queue of things for the ProcessCommand in Mt4.
+        """
+        if self.oQueue.empty():
+            return ""
+        return(self.oQueue.get())
+    
+    def eMt4PushQueue(self, sMessage):
+        """
+        """
+        self.oQueue.put(sMessage)
+        return("")
     
     def eBindBlockingSpeaker(self, sRoutingKey):
         """
+        We are going to use our Speaker channel as a broadcast
+        channel for ticks, so we will set it up as a "topic".
         """
         if self.oSpeakerChannel is None:
             self.oCreateConnection()
             oChannel = self.oConnection.channel()
 
-            oChannel.exchange_declare(exchange=self.sExchangeName, type='topic')
+            oChannel.exchange_declare(exchange=self.sExchangeName,
+                                      passive=False,
+                                      auto_delete=True,
+                                      type='topic')
 
-            oResult = oChannel.queue_declare(exclusive=True)
+            #? oResult = oChannel.queue_declare(exclusive=True)
             #? only one routing key?
-            oChannel.queue_bind(exchange=self.sExchangeName,
-                                queue=oResult.method.queue,
-                                routing_key=sRoutingKey)
+            # oChannel.queue_bind(exchange=self.sExchangeName,
+            # queue=oResult.method.queue,
+            # routing_key=sRoutingKey)
             time.sleep(0.1)
             self.oSpeakerChannel = oChannel
-            self.oSpeakerQueueName = oResult.method.queue
 
     def eBindBlockingListener(self, sRoutingKey='#'):
         """
@@ -76,29 +140,42 @@ class PikaMixin(object):
             self.oCreateConnection()
             oChannel = self.oConnection.channel()
 
-            oChannel.exchange_declare(exchange=self.sExchangeName, type='topic')
-
-            oResult = oChannel.queue_declare(exclusive=True)
+            oChannel.exchange_declare(exchange=self.sExchangeName,
+                                      auto_delete=True,
+                                      type='topic')
+            sQueueName = "listen-to-mt4"
+            oResult = oChannel.queue_declare(queue=sQueueName)
+            # self.oListenerQueueName = oResult.method.queue
+            self.oListenerQueueName = sQueueName
             oChannel.queue_bind(exchange=self.sExchangeName,
-                                queue=oResult.method.queue,
-                                routing_key=sRoutingKey)
+                                queue=sQueueName,
+                                routing_key=sRoutingKey,
+            )
             time.sleep(0.1)
             self.oListenerChannel = oChannel
-            self.oListenerQueueName = oResult.method.queue
             
-    def eSendOnSpeaker(self, sTopic, sMsg):
+    def eSendOnSpeaker(self, sType, sMsg):
+        """
+        """
+        if sType not in ['tick', 'timer', 'retval', 'bar', 'test']:
+            # raise?
+            return "ERROR: oSpeakerChannel unhandled topic" +sMsg
+        sRoutingKey = sType
+        sRoutingKey = 'tick'
         if self.oSpeakerChannel is None:
-            self.eBindBlockingSpeaker(sTopic)
-        assert self.oSpeakerChannel
-        self.oSpeakerChannel.basic_publish(self.sExchangeName,
-                                           sTopic,
-                                           sMsg,
-                                           self.oProperties)
+            self.eBindBlockingSpeaker(sRoutingKey)
+
+        assert self.oSpeakerChannel, "ERROR: oSpeakerChannel is null"
+        
+        self.oSpeakerChannel.basic_publish(exchange=self.sExchangeName,
+                                           routing_key=sRoutingKey,
+                                           body=sMsg,
+                                           properties=self.oProperties)
 
         return ""
 
     def vCallbackOnListener(self, oChannel, oMethod, oProperties, lBody):
-       oLOG.info("Listened: %r" % (lBody,))
+        print "INFO: Listened: %r" % (lBody,)
         
     def sRecvOnListener(self):
         self.vRecvOnListener()
@@ -109,23 +186,38 @@ class PikaMixin(object):
         assert self.oListenerChannel
         self.oListenerChannel.basic_consume(self.vCallbackOnListener,
                                             queue=self.oListenerQueueName,
+                                            exclusive=True,
                                             no_ack=True)
 
-        #? self.oListenerChannel.start_consuming()
-        #? timeout?
-        # self.oConnection.process_data_events()
+    def _run_server_thread(server):
+        t = threading.Thread(target=server.start)
+        t.daemon = True
+        t.start()
+        server.wait()
+        return t
 
-    def eSendOnListener(self, sMsg):
-        if self.oListenerChannel is None:
-            self.eBindListener()
-        assert self.oSpeakerChannel
-        self.oListenerChannel.send(sMsg)
-        return ""
+    def zStartCallmeServer(self):
+        # The callme server is optional and may not be installed
+        if not callme:
+            return ""
+        if self.oListenerThread is None:
+            oServer = callme.Server(server_id='Mt4Server')
+            oServer.register_function(lambda a, b: a + b, 'madd')
+            self.oListenerThread = self._run_server_thread(oServer)
+            self.oListenerServer = oServer
+            
+        return self.oListenerThread.name
 
-    def bCloseEngineSockets(self):
-        global oENGINE
+    def bCloseConnectionSockets(self, oOptions=None):
+        global oCONNECTION
+        if self.oListenerThread:
+            self.oListenerServer.stop()
+            self.oListenerThread.join()
+            self.oListenerServer = None
+            self.oListenerThread = None
+
         if self.iDebugLevel >= 1:
-           oLOG.info("destroying the engine")
+            print "DEBUG: destroying the connection"
         sys.stdout.flush()
         if self.oConnection:
             self.oConnection.close()
@@ -134,11 +226,11 @@ class PikaMixin(object):
         if self.oSpeakerChannel:
             self.oSpeakerChannel = None
         time.sleep(0.1)
-        oENGINE = None
+        oCONNECTION = None
         return True
 
 def iMain():
-    from OTMql427.PikaArguments import oParseOptions
+    from PikaArguments import oParseOptions
     
     sUsage = __doc__.strip()
     oArgParser = oParseOptions(sUsage)
@@ -164,12 +256,12 @@ def iMain():
     except KeyboardInterrupt:
         pass
     except Exception, e:
-        print(str(e))
+        print "ERROR: " +str(e)
         raise
     finally:
         if o:
-            o.bCloseEngineSockets(oOptions)
-        print "Waiting for message queues to flush..."
+            o.bCloseConnectionSockets(oOptions)
+        print "DEBUG: Waiting for message queues to flush..."
         time.sleep(1.0)
 
 if __name__ == '__main__':
