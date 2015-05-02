@@ -26,7 +26,7 @@ def oParseOptions(sUsage):
                             help="the password for the connection (default guest)")
     oArgParser.add_argument("-e", "--exchange", action="store",
                             dest="sExchangeName", default="Mt4",
-                            help="sExchangeName for the connection (default topic_logs)")
+                            help="sExchangeName for the connection (default Mt4)")
     oArgParser.add_argument("-i", "--virtual", action="store",
                             dest="sVirtualHost", default="/",
                             help="the VirtualHost for the connection (default /)")

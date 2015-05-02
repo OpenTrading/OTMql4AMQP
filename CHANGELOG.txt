@@ -1,3 +1,13 @@
+commit be212d2f520699bdf9891439de168ae16238813f
+Date:   Fri May 1 17:39:26 2015 +0300
+
+    Made an EA that is now working and broadcasting ticks and bars.
+    Needs cleaning up with regard to queues and topics, but it's working.
+    
+    Started playing with callme as a return RPC command channel.
+    You'll need to install callme and its prereqs first.
+    Could be a whole lot of fun...
+
 commit 4544dd12070da1ed45297c01801c83337441f002
 Date:   Tue Apr 28 16:45:44 2015 +0300
 

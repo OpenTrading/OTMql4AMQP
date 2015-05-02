@@ -1,0 +1,18 @@
+### Testing
+
+If you open a command window and go to your `MQL4\Python` directory
+run this command first
+`
+python OTMql427/PikaListener.py "#"
+`
+Then open another command window and go to your `MQL4\Python` directory
+run this command second
+`
+python OTMql427/PikaChart.py "foo"
+`
+You should soon see `['foo']` appear 10 times in the first window.
+
+If it does not work, then solve this problem first, because it
+won't work from Python under Mt4 if it doesn't work here.
+
+

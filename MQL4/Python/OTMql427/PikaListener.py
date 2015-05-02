@@ -5,12 +5,11 @@
 This module can be run from the command line to test RabbitMQ
 by listening to the broker for messages sent by a speaker
 such as PikaChart.py. Give  --help to see the options.
-
-We will only have on Pika Connection for any given process, so
-we assign the connection object to the module variable oCONNECTION.
 """
-oCONNECTION = None
 
+# We will only have on Pika Connection for any given process, so
+# we assign the connection object to the module variable oCONNECTION.
+oCONNECTION = None
 
 import sys, logging
 import time
@@ -19,25 +18,34 @@ import Queue
 
 import pika
 
-# The callme server is optional and may not be installed.
-# But it might be a whole lot of fun it it works.
-# It has prerequisities: kombu httplib2
-try:
-    import callme
-except ImportError:
-    callme = None
-    
 oLOG = logging
 
+# The callme server is optional and may not be installed.
+# But it might be a whole lot of fun it it works.
+# It has prerequisities: kombu httplib2 amqp
+try:
+    import PikaCallme
+    from Mt4SafeEval import sPySafeEval
+    ePikaCallme = ""
+    def _run_server_thread(server):
+        t = threading.Thread(target=server.start)
+        t.daemon = True
+        t.start()
+        return t
+except ImportError, e:
+    ePikaCallme = "Failed to import PikaCallme: " + str(e)
+    PikaCallme = None
+    
 class PikaMixin(object):
 
     iDeliveryMode = 1 # (non-persisted)
     sContentType = 'text/plain'
 
     def __init__(self, **dParams):
-
+        self.oListenerChannel = None
         self.oSpeakerChannel = None
         self.oListenerThread = None
+        self.oListenerServer = None
         self.sName = dParams.get('sName', "")
         self.iSpeakerPort = dParams.get('iSpeakerPort', 5672)
         self.iListenerPort = dParams.get('iListenerPort', 5672)
@@ -75,7 +83,7 @@ class PikaMixin(object):
             
         return self.oConnection
     
-    def eHeartBeat(self, sChartName, sIgnore=""):
+    def eHeartBeat(self, sChartName, iTimeout=0):
         """
         The heartbeat is usually called from the Mt4 OnTimer.
         We push a simple Print exec command onto the queue of things
@@ -93,15 +101,29 @@ class PikaMixin(object):
         # whilst the program is running
         sys.stdout.flush()
         sys.stderr.flush()
+
+        # now for the hard part - join self.oListenerServer
+        if iTimeout > 0 and self.oListenerServer:
+            # join it and do a little work but dont block for long
+            # cant use self.oListenerServer.wait()
+            print "DEBUG: listening on server"
+            self.oListenerServer.drain_event(iTimeout=iTimeout)
+            
         return sMess
     
     def zMt4PopQueue(self, sChartName):
         """
         The PopQueue is usually called from the Mt4 OnTimer.
-        We it is a queue of things for the ProcessCommand in Mt4.
+        We use is a queue of things for the ProcessCommand in Mt4.
         """
         if self.oQueue.empty():
             return ""
+        
+        # while we are here flush stdout so we can read the log file
+        # whilst the program is running
+        sys.stdout.flush()
+        sys.stderr.flush()
+
         return(self.oQueue.get())
     
     def eMt4PushQueue(self, sMessage):
@@ -109,6 +131,13 @@ class PikaMixin(object):
         """
         self.oQueue.put(sMessage)
         return("")
+    
+    def eMt4Retval(self, sMessage):
+        sTopic = 'retval'
+        # sMark = "%15.5f" % time.time()
+        # FixMe: the sMessage must be in the right format
+        sMess = "%s|%s|0|%s" % (sTopic, sChartName, sMessage,)
+        self.eMt4PushQueue(sMess)
     
     def eBindBlockingSpeaker(self, sRoutingKey):
         """
@@ -188,37 +217,41 @@ class PikaMixin(object):
                                             queue=self.oListenerQueueName,
                                             exclusive=True,
                                             no_ack=True)
-
-    def _run_server_thread(server):
-        t = threading.Thread(target=server.start)
-        t.daemon = True
-        t.start()
-        server.wait()
-        return t
-
-    def zStartCallmeServer(self):
+    def eStartCallmeServer(self, sId='Mt4Server'):
         # The callme server is optional and may not be installed
-        if not callme:
-            return ""
-        if self.oListenerThread is None:
-            oServer = callme.Server(server_id='Mt4Server')
-            oServer.register_function(lambda a, b: a + b, 'madd')
-            self.oListenerThread = self._run_server_thread(oServer)
+        if not PikaCallme:
+            return ePikaCallme
+        if self.oListenerServer is None:
+            oServer = PikaCallme.Server(server_id=sId)
+            # danger - we are running this in the main thread
+            # self.oListenerThread = _run_server_thread(oServer)
+            oServer.connect()
+            oServer.register_function(sPySafeEval, 'sPySafeEval')
+            oServer.register_function(self.eMt4PushQueue, 'eMt4PushQueue')
             self.oListenerServer = oServer
+            print "DEBUG: started the callme server %d" % id(oServer)
             
-        return self.oListenerThread.name
+        return ""
 
     def bCloseConnectionSockets(self, oOptions=None):
         global oCONNECTION
+
+        # might be called during a broken __init__
+        if not hasattr(self, 'oListenerThread'): return False
+        
         if self.oListenerThread:
             self.oListenerServer.stop()
             self.oListenerThread.join()
             self.oListenerServer = None
             self.oListenerThread = None
+        elif self.oListenerServer:
+            self.oListenerServer.disconnect()
+            self.oListenerServer = None
 
         if self.iDebugLevel >= 1:
             print "DEBUG: destroying the connection"
         sys.stdout.flush()
+        sys.stderr.flush()
         if self.oConnection:
             self.oConnection.close()
         if self.oListenerChannel:

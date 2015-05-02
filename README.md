@@ -13,8 +13,8 @@ It builds on OTMql4Py, and requires it as a pre-requisite.
 In your Python, you must have installed Pika:
 https://pypi.python.org/pypi/pika/
 Pika offers the advantage of being pure Python: no DLLs to compile
-or install. Pika communicates with AMQP servers,
-the most common being RabbitMQ http://www.rabbitmq.com
+or install. Pika communicates with AMQP servers, the most common
+open-source one being RabbitMQ http://www.rabbitmq.com
 You will need an AMPQ server installed, configured and running
 to use this project.
 
@@ -40,9 +40,6 @@ the folder MQL4 over the MQL4 folder of your Metatrader installation. It will
 not overwrite any Mt4 system files; if it overwrites any OTMql4Py files,
 the files are in fact identical (e.g. __init__.py).
 
-### Testing
-
-
 ### Project
 
 Please file any bugs in the issue tracker:
@@ -54,3 +51,40 @@ It's better to use the wiki for knowledge capture, and then we can pull
 the important pages back into the documentation in the share/doc directory.
 You will need to be signed into github.com to see or edit in the wiki.
 
+### Testing
+
+If you open a command window and go to your `MQL4\Python` directory
+run this command first
+`
+python OTMql427/PikaListener.py "#"
+`
+Then open another command window and go to your `MQL4\Python` directory
+run this command second
+`
+python OTMql427/PikaChart.py "foo"
+`
+You should soon see `['foo']` appear 10 times in the first window.
+
+If it does not work, then solve this problem first, because it
+won't work from Python under Mt4 if it doesn't work here.
+
+
+### Round Tripping
+
+Mt4 can call Python, but Python can't call Mt4. So we need to
+establish a round-trip from Mt4 that looks to see if there is anything
+that Python wants it to do.
+
+The way we do this is to make a Queue object from the Python library
+`Queue` and push anything Python wants done onto the Queue in Python.
+Then put a timer event in your Mt4 expert that fires periodically
+(like even 10 seconds), and calls the Python code to pop the work
+off the queue.
+
+However, Mt4 does not have an eval command to handle arbitrary strings
+to be executed. So we wrote the `zOTLibProcessCmd` is the OTMql4Lib
+project (OTLibProcessCmd.mq4)
+that approximates what should be Eval in Mt4.
+
+Depending on how you push things onto the queue, you may want to
+take the result of `zOTLibProcessCmd` and distribute it via RabbitMQ.

@@ -15,9 +15,16 @@ extern string uPASSWORD = "guest";
 extern string uEXCHANGE_NAME = "Mt4";
 // for testing - in real life we probably want "Mt4" in here for permissions
 extern string uVIRTUALHOST = "/";
+// disabled if = 0 - callme is not working even though it should be. YMMV.
+extern int iCALLME_TIMEOUT = 0;
 
 extern string uStdOutFile="../../Logs/_test_PyTestPikaEA.txt";
 
+/*
+This provides the function sBarInfo which puts together the
+information you want send to a remote client on every bar.
+Change to suit your own needs.
+*/
 #include <OTMql4/OTZmqBarInfo.mqh>
 
 #include <OTMql4/OTLibLog.mqh>
@@ -142,9 +149,9 @@ int OnInit() {
 	    uRetval = "ERROR: PikaChart.PikaChart failed: "  + uRetval;
 	    vPanic(uRetval);
 	    return(-3);
-	} else {
-	    uRetval = "PikaChart.PikaChart succeeded: "  + uRetval;
-	    vDebug(uRetval);
+	} else if (uRetval != " : ") {
+	    uRetval = "PikaChart.PikaChart errored: "  + uRetval;
+	    vWarn(uRetval);
 	}
 	
 	iCONNECTION = iPyEvalInt("id(" +uCHART_NAME +".oCreateConnection())");
@@ -160,15 +167,18 @@ int OnInit() {
 	GlobalVariableTemp("fPyPikaConnection");
 	GlobalVariableSet("fPyPikaConnection", iCONNECTION);
 
-	uRetval = uPySafeEval(uCHART_NAME+".zStartCallmeServer()");
-	if (StringFind(uRetval, "ERROR:", 0) >= 0) {
-	    uRetval = "WARN: zStartCallmeServer failed: "  + uRetval;
-	    vWarn(uRetval);
-	} else if (uRetval == "") {
-	    vInfo("zStartCallmeServer is optional");
-	} else {
-	    uRetval = "INFO: zStartCallmeServer returned"  + uRetval;
-	    vInfo(uRetval);
+	if (iCALLME_TIMEOUT > 0) {
+	    vInfo("INFO: starting CallmeServer - this make take a while");
+	    uRetval = uPySafeEval(uCHART_NAME+".eStartCallmeServer()");
+	    if (StringFind(uRetval, "ERROR:", 0) >= 0) {
+		uRetval = "WARN: zStartCallmeServer failed: "  + uRetval;
+		vWarn(uRetval);
+	    } else if (uRetval == "") {
+		vInfo("INFO: zStartCallmeServer succeeded");
+	    } else {
+		uRetval = "WARN: eStartCallmeServer returned"  + uRetval;
+		vWarn(uRetval);
+	    }
 	}
 	
         fPY_PIKA_CONNECTION_USERS = 1.0;
@@ -208,7 +218,8 @@ void OnTimer() {
     string uType = "timer";
 	
     uInfo = "0";
-    uRetval = uPySafeEval(uCHART_NAME+".eHeartBeat('" +uCHART_NAME +"', '" +"')");
+    uRetval = uPySafeEval(uCHART_NAME+".eHeartBeat('" +uCHART_NAME +"', "
+			  +IntegerToString(iCALLME_TIMEOUT) +")");
     if (StringFind(uRetval, "ERROR:", 0) >= 0) {
 	uRetval = "ERROR: eHeartBeat failed: "  + uRetval;
 	vWarn("OnTimer: " +uRetval);
@@ -229,7 +240,7 @@ void OnTimer() {
     } else {
 	//vTrace("OnTimer: Processing popped exec message: " + uRetval);
 	uMess = uOTPyPikaProcessCmd(uRetval);
-	 vDebug("OnTimer: processed " +uMess);
+	vDebug("OnTimer: processed " +uMess);
     }
     
     uMess  = zOTLibMt4FormatTick(uType, Symbol(), Period(), uTime, uInfo);
