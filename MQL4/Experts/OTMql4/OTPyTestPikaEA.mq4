@@ -25,7 +25,7 @@ This provides the function sBarInfo which puts together the
 information you want send to a remote client on every bar.
 Change to suit your own needs.
 */
-#include <OTMql4/OTZmqBarInfo.mqh>
+#include <OTMql4/OTBarInfo.mqh>
 
 #include <OTMql4/OTLibLog.mqh>
 #include <OTMql4/OTLibStrings.mqh>
