@@ -1,3 +1,8 @@
+commit 0e1141ad799d77055c0beaa429536ceda30489c9
+Date:   Sat May 2 14:44:02 2015 +0300
+
+    Renamed MQL4/Include/OTMql4/OTBarInfo.mqh in OTMql4Lib
+
 commit 475e3e23f5d9ea4fe239b2b78403b7c8493a7da4
 Date:   Sat May 2 14:29:15 2015 +0300
 

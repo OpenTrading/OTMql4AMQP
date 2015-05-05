@@ -18,7 +18,7 @@ to use this project.
 
 **This is a work in progress - a developers' pre-release version.**
 
-It works on builds > 6xx, but the documentation and the wiring up
+It works on builds > 6xx, but the documentation of the wiring up
 of an asnychronous event loop under Python still needs to be done,
 as well as more tests and testing on different versions.
 Only Python 2.7.x is supported.

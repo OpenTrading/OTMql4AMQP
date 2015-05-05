@@ -52,7 +52,7 @@ string uOTPyPikaProcessCmd(string uCmd) {
     uRetval = zOTLibProcessCmd(uCmd);
     // can be "void|" return value
     // empty string means the command was not handled.
-    return("");
+    return(uRetval);
 }
 
 void vPanic(string uReason) {
@@ -135,7 +135,7 @@ int OnInit() {
 	uExchangeName = uEXCHANGE_NAME;
 	vPyExecuteUnicode(uCHART_NAME+"=PikaChart.PikaChart('" +
 			  Symbol() + "'," + Period() + ", " + iIsEA + ", " +
-			  "sName='" +uCHART_NAME + "', " +
+			  "sChartName='" +uCHART_NAME + "', " +
 			  "sUsername='" + uUSERNAME + "', " +
 			  "sPassword='" + uPASSWORD + "', " +
 			  "sExchangeName='" + uExchangeName + "', " +
@@ -200,7 +200,6 @@ void OnTimer() {
     string uRetval="";
     string uMessage;
     string uMess, uInfo;
-    bool bRetval;
 
     /* timer events can be called before we are ready */
     if (GlobalVariableCheck("fPyPikaConnectionUsers") == false) {
@@ -216,18 +215,19 @@ void OnTimer() {
     datetime tTime=iTime(uSYMBOL, iTIMEFRAME, 0);
     string uTime = TimeToStr(tTime, TIME_DATE|TIME_MINUTES) + " ";
     string uType = "timer";
-	
+    string uMark;
+    
     uInfo = "0";
-    uRetval = uPySafeEval(uCHART_NAME+".eHeartBeat('" +uCHART_NAME +"', "
+    uRetval = uPySafeEval(uCHART_NAME+".eHeartBeat("
 			  +IntegerToString(iCALLME_TIMEOUT) +")");
-    if (StringFind(uRetval, "ERROR:", 0) >= 0) {
+    if (StringFind(uRetval, "ERROR: ", 0) >= 0) {
 	uRetval = "ERROR: eHeartBeat failed: "  + uRetval;
 	vWarn("OnTimer: " +uRetval);
 	return;
     }
     // There may be sleeps for threads here
     // We may want to loop over zMt4PopQueue to pop many commands
-    uRetval = uPySafeEval(uCHART_NAME+".zMt4PopQueue('" +uCHART_NAME +"')");
+    uRetval = uPySafeEval(uCHART_NAME+".zMt4PopQueue()");
     if (StringFind(uRetval, "ERROR:", 0) >= 0) {
 	uRetval = "ERROR: zMt4PopQueue failed: "  + uRetval;
 	vWarn("OnTimer: " +uRetval);
@@ -240,7 +240,19 @@ void OnTimer() {
     } else {
 	//vTrace("OnTimer: Processing popped exec message: " + uRetval);
 	uMess = uOTPyPikaProcessCmd(uRetval);
-	vDebug("OnTimer: processed " +uMess);
+	if (uMess == "void") {
+	    // can be "void|" return value
+	} else if (StringFind(uRetval, "cmd", 0) == 0) {
+	    // if the command is cmd|  - return a value as a retval|
+	    // if the command is exec| - dont return a value
+	    // FixMe - we want the sMark from uRetval instead of uTime
+	    uMark = uTime;
+	    uMess  = zOTLibMt4FormatRetval("retval", Symbol(), Period(), uMark, uMess);
+	    eSendOnSpeaker("retval", uMess);
+	    vDebug("OnTimer: retvaled " +uMess);
+	} else {
+	    vDebug("OnTimer: processed " +uMess);
+	}
     }
     
     uMess  = zOTLibMt4FormatTick(uType, Symbol(), Period(), uTime, uInfo);

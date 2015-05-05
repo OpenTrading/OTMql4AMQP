@@ -27,7 +27,10 @@ class PikaChart(Mq4Chart, PikaMixin):
     def __init__(self, sSymbol, iPeriod, iIsEA, **dParams):
         Mq4Chart.__init__(self, sSymbol, iPeriod, iIsEA, dParams)
         PikaMixin.__init__(self, **dParams)
-
+        self.sSymbol = sSymbol
+        self.iPeriod = iPeriod
+        self.iIsEA = iIsEA
+        
 def iMain():
     from PikaArguments import oParseOptions
     
@@ -36,24 +39,26 @@ def iMain():
     oOptions = oArgParser.parse_args()
     lArgs = oOptions.lArgs
 
-    # FixMe:
-    sTopic = 'test'
+    assert lArgs, "Give the command you want to send as arguments to this script"
 
-    assert lArgs, "Give the message you want to publish as arguments to this script"
-    print lArgs
+    sSymbol = 'USDUSD'
+    iPeriod = 0
+    sTopic = 'cmd'
+    sMark = "%15.5f" % time.time()
+    sMsg = "%s|%s|%d|%s|%s" % (sTopic, sSymbol, iPeriod, sMark, '|'.join(lArgs),)
+    
     o = None
     try:
         if oOptions.iVerbose >= 4:
             oLOG.info("Publishing with message: " +" ".join(lArgs))
         o = PikaChart('Mt4', 0, 0, **oOptions.__dict__)
-        iMax = 10
+        iMax = 2
         i = 0
-        sMsg = str(lArgs)
         if oOptions.iVerbose >= 4:
             oLOG.debug("Sending: %s %d times " % (sMsg, iMax,))
         while i < iMax:
-            # send a burst of 10 copies
-            o.eSendOnSpeaker(sTopic, sMsg)
+            # send a burst of iMax copies
+            o.eSendOnSpeaker('cmd', sMsg)
             i += 1
         # print "Waiting for message queues to flush..."
         time.sleep(1.0)

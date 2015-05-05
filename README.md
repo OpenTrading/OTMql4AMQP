@@ -20,7 +20,7 @@ to use this project.
 
 **This is a work in progress - a developers' pre-release version.**
 
-It works on builds > 6xx, but the documentation and the wiring up
+It works on builds > 6xx, but the documentation of the wiring up
 of an asnychronous event loop under Python still needs to be done,
 as well as more tests and testing on different versions.
 Only Python 2.7.x is supported.
@@ -68,7 +68,13 @@ You should soon see `['foo']` appear 10 times in the first window.
 If it does not work, then solve this problem first, because it
 won't work from Python under Mt4 if it doesn't work here.
 
+If you leave the first command running, you should see the tick
+and bar information broadcast by the calls in `OnTimer` and `OnTick` in
+`MQL4/Experts/OTMql4/OTPyTestPikaEA.mq4`
 
+`OnTimer` is called every iTIMER_INTERVAL_SEC (10 sec.)
+which allows us to use Python to look for Pika inbound messages (not yet),
+or execute a stack of calls from Python to us in Metatrader.
 ### Round Tripping
 
 Mt4 can call Python, but Python can't call Mt4. So we need to
@@ -82,9 +88,10 @@ Then put a timer event in your Mt4 expert that fires periodically
 off the queue.
 
 However, Mt4 does not have an eval command to handle arbitrary strings
-to be executed. So we wrote the `zOTLibProcessCmd` is the OTMql4Lib
+to be executed. So we wrote the `zOTLibProcessCmd` in the OTMql4Lib
 project (OTLibProcessCmd.mq4)
 that approximates what should be Eval in Mt4.
 
 Depending on how you push things onto the queue, you may want to
 take the result of `zOTLibProcessCmd` and distribute it via RabbitMQ.
+
