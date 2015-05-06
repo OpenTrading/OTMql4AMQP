@@ -95,8 +95,8 @@ class PikaMixin(object):
         """
         The heartbeat is usually called from the Mt4 OnTimer.
         We push a simple Print exec command onto the queue of things
-        for Mt4 to do. This way we get a message in the Log,
-        but with a string made in Python.
+        for Mt4 to do if there's nothing else happening. This way we get 
+        a message in the Mt4 Log,  but with a string made in Python.
         """
         sTopic = 'exec'
         sMark = "%15.5f" % time.time()

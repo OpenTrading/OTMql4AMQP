@@ -1,3 +1,9 @@
+commit cb64e6ea234dc51d01cf201c1a3757b4aecfdf80
+Date:   Tue May 5 19:41:36 2015 +0300
+
+    Wired up the return channel so that Mt4 can receive commands over RabbitMQ.
+    Still need to clean it up and document it, but it works, WITHOUT CRASHES!
+
 commit 0e1141ad799d77055c0beaa429536ceda30489c9
 Date:   Sat May 2 14:44:02 2015 +0300
 

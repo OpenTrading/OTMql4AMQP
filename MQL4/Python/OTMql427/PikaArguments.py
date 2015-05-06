@@ -9,6 +9,12 @@ arguments parsing can be uniform between applications that use it.
 from argparse import ArgumentParser
 
 def oParseOptions(sUsage):
+    """
+    Look at the bottom of PikaListener.py and PikaChart.py for iMain
+    functions that use the oParseOptions that is returned here.
+    This function returns an ArgumentParser instance, so that you
+    can override it before you call it to parse_args.
+    """
     oArgParser = ArgumentParser(description=sUsage)
     # rabbit
     oArgParser.add_argument("-a", "--address", action="store",
