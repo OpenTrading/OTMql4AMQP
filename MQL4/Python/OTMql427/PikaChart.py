@@ -50,7 +50,7 @@ def iMain():
         o = PikaChart('oUSDUSD_0_FFFF_0', **oOptions.__dict__)
         iMax = 1
         i = 0
-        oLOG.indo("Sending: %s %d times " % (sMsg, iMax,))
+        oLOG.info("Sending: %s %d times " % (sMsg, iMax,))
         while i < iMax:
             # send a burst of iMax copies
             o.eSendOnSpeaker('cmd', sMsg)
