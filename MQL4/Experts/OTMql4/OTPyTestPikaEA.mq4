@@ -20,6 +20,7 @@ extern int iCALLME_TIMEOUT = 0;
 
 extern string uStdOutFile="../../Logs/_test_PyTestPikaEA.txt";
 
+#include <WinUser32.mqh>
 /*
 This provides the function sBarInfo which puts together the
 information you want send to a remote client on every bar.
@@ -31,10 +32,9 @@ Change to suit your own needs.
 #include <OTMql4/OTLibStrings.mqh>
 #include <OTMql4/OTLibMt4ProcessCmd.mqh>
 #include <OTMql4/OTLibProcessCmd.mqh>
-#include <OTMql4/OTPy27.mqh>
+#include <OTMql4/OTLibSimpleFormatCmd.mqh>
+#include <OTMql4/OTLibPy27.mqh>
 //unused #include <OTMql4/OTPyPika.mqh>
-
-#include <WinUser32.mqh>
 
 int iTIMER_INTERVAL_SEC = 10;
 int iCONNECTION = -1;
@@ -63,7 +63,7 @@ void vPanic(string uReason) {
 }
 
 int iIsEA=1;
-string uCHART_NAME="";
+string uCHART_ID="";
 double fDebugLevel=0;
 
 string uSafeString(string uSymbol) {
@@ -102,8 +102,6 @@ int OnInit() {
 	uSYMBOL=Symbol();
 	iTIMEFRAME=Period();
 	iACCNUM=AccountNumber();
-	//? add iACCNUM +"|" ? It may change during the charts lifetime
-	uCHART_NAME="oChart"+"_"+uSafeString(uSYMBOL)+"_"+Period()+"_"+iIsEA;
 
 	uArg="import pika";
 	vPyExecuteUnicode(uArg);
@@ -127,15 +125,12 @@ int OnInit() {
 	    uRetval = "import PikaChart succeeded: "  + uRetval;
 	    vDebug(uRetval);
 	}
-	/*
-	vLog(LOG_INFO, "rInstance of oPikaChart creating "+
-	     uCHART_NAME +" iIsEA "+ iIsEA);
-	*/
+
+	uCHART_ID = uChartName(uSafeString(uSYMBOL), Period(), ChartID(), iIsEA);
 	// for testing - in real life we probably want the PID in here
 	uExchangeName = uEXCHANGE_NAME;
-	vPyExecuteUnicode(uCHART_NAME+"=PikaChart.PikaChart('" +
-			  Symbol() + "'," + Period() + ", " + iIsEA + ", " +
-			  "sChartName='" +uCHART_NAME + "', " +
+	vPyExecuteUnicode(uCHART_ID+"=PikaChart.PikaChart(" +
+			  "'" +uCHART_ID + "', " +
 			  "sUsername='" + uUSERNAME + "', " +
 			  "sPassword='" + uPASSWORD + "', " +
 			  "sExchangeName='" + uExchangeName + "', " +
@@ -154,7 +149,7 @@ int OnInit() {
 	    vWarn(uRetval);
 	}
 	
-	iCONNECTION = iPyEvalInt("id(" +uCHART_NAME +".oCreateConnection())");
+	iCONNECTION = iPyEvalInt("id(" +uCHART_ID +".oCreateConnection())");
 	// FixMe:! theres no way to no if this errored! No NAN in Mt4
 	if (iCONNECTION <= 0) {
 	    uRetval = "ERROR: oCreateConnection failed: is RabbitMQ running?";
@@ -169,7 +164,7 @@ int OnInit() {
 
 	if (iCALLME_TIMEOUT > 0) {
 	    vInfo("INFO: starting CallmeServer - this make take a while");
-	    uRetval = uPySafeEval(uCHART_NAME+".eStartCallmeServer()");
+	    uRetval = uPySafeEval(uCHART_ID+".eStartCallmeServer()");
 	    if (StringFind(uRetval, "ERROR:", 0) >= 0) {
 		uRetval = "WARN: zStartCallmeServer failed: "  + uRetval;
 		vWarn(uRetval);
@@ -218,7 +213,7 @@ void OnTimer() {
     string uMark;
     
     uInfo = "0";
-    uRetval = uPySafeEval(uCHART_NAME+".eHeartBeat("
+    uRetval = uPySafeEval(uCHART_ID+".eHeartBeat("
 			  +IntegerToString(iCALLME_TIMEOUT) +")");
     if (StringFind(uRetval, "ERROR: ", 0) >= 0) {
 	uRetval = "ERROR: eHeartBeat failed: "  + uRetval;
@@ -227,7 +222,7 @@ void OnTimer() {
     }
     // There may be sleeps for threads here
     // We may want to loop over zMt4PopQueue to pop many commands
-    uRetval = uPySafeEval(uCHART_NAME+".zMt4PopQueue()");
+    uRetval = uPySafeEval(uCHART_ID+".zMt4PopQueue()");
     if (StringFind(uRetval, "ERROR:", 0) >= 0) {
 	uRetval = "ERROR: zMt4PopQueue failed: "  + uRetval;
 	vWarn("OnTimer: " +uRetval);
@@ -240,22 +235,23 @@ void OnTimer() {
     } else {
 	//vTrace("OnTimer: Processing popped exec message: " + uRetval);
 	uMess = uOTPyPikaProcessCmd(uRetval);
-	if (uMess == "void") {
+	if (uMess == "void|") {
 	    // can be "void|" return value
 	} else if (StringFind(uRetval, "cmd", 0) == 0) {
 	    // if the command is cmd|  - return a value as a retval|
-	    // if the command is exec| - dont return a value
-	    // FixMe - we want the sMark from uRetval instead of uTime
-	    uMark = uTime;
-	    uMess  = zOTLibMt4FormatRetval("retval", Symbol(), Period(), uMark, uMess);
-	    eSendOnSpeaker("retval", uMess);
+	    // We want the sMark from uRetval instead of uTime
+	    // but we will do than in Python
+	    uMark = 0;
+	    uMess  = zOTLibSimpleFormatRetval("retval", uCHART_ID, 0, uMark, uMess);
+	    eSendOnSpeaker("retval", uMess, uRetval);
 	    vDebug("OnTimer: retvaled " +uMess);
 	} else {
+	    // if the command is exec| - dont return a value
 	    vDebug("OnTimer: processed " +uMess);
 	}
     }
     
-    uMess  = zOTLibMt4FormatTick(uType, Symbol(), Period(), uTime, uInfo);
+    uMess  = zOTLibSimpleFormatTick(uType, uCHART_ID, 0, uTime, uInfo);
     eSendOnSpeaker("timer", uMess);
 }
 
@@ -296,17 +292,20 @@ void OnTick() {
 	uType = "tick";
     }
 
-    uMess  = zOTLibMt4FormatTick(uType, Symbol(), Period(), uTime, uInfo);
+    uMess  = zOTLibSimpleFormatTick(uType, uCHART_ID, 0, uTime, uInfo);
     eSendOnSpeaker(uType, uMess);
 }
 
-void eSendOnSpeaker(string uType, string uMess) {
+void eSendOnSpeaker(string uType, string uMess, string uOriginCmd="") {
     string uRetval;
-    
-    string uCHART_NAME="oChart"+"_"+uSafeString(Symbol())+"_"+Period()+"_1";
-    
-    uMess = uCHART_NAME +".eSendOnSpeaker('" +uType +"', '" +uMess +"')";
 
+    if (uOriginCmd == "") {
+	uMess = uCHART_ID +".eSendOnSpeaker('" +uType +"', '" +uMess +"')";
+    } else {
+	// This message is a reply in a cmd
+	uMess = uCHART_ID +".eSendOnSpeaker('" +uType +"', '" +uMess
+	    +"', '" +uOriginCmd +"')";
+    }
     //vTrace("eSendOnSpeaker:  uMess: " +uMess);
     // the retval should be empty - otherwise its an error
     vPyExecuteUnicode(uMess);
@@ -332,7 +331,7 @@ void OnDeinit(const int iReason) {
 	if (iCONNECTION < 1) {
 	    vWarn("OnDeinit: unallocated connection");
 	} else {
-	    vPyExecuteUnicode(uCHART_NAME +".bCloseConnectionSockets()");
+	    vPyExecuteUnicode(uCHART_ID +".bCloseConnectionSockets()");
 	}
 	GlobalVariableDel("fPyPikaConnection");
 

@@ -1,3 +1,9 @@
+commit a151f7ee6d88e7c42ed3e9397ad0a4b00ff4a752
+Date:   Wed May 6 16:02:57 2015 +0300
+
+    Checked in the callme code, even though we are not using it:
+    MQL4/Python/OTMql427/PikaCallme.py
+
 commit cb64e6ea234dc51d01cf201c1a3757b4aecfdf80
 Date:   Tue May 5 19:41:36 2015 +0300
 

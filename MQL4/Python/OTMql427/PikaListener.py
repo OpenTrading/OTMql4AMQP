@@ -49,12 +49,12 @@ class PikaMixin(object):
     iDeliveryMode = 1 # (non-persisted)
     sContentType = 'text/plain'
 
-    def __init__(self, **dParams):
+    def __init__(self, sChartId, **dParams):
         self.oSpeakerChannel = None
         self.oListenerChannel = None
         self.oListenerThread = None
         self.oListenerServer = None
-        self.sChartName = dParams.get('sChartName', "")
+        self.sChartId = sChartId
         self.iSpeakerPort = dParams.get('iSpeakerPort', 5672)
         self.iListenerPort = dParams.get('iListenerPort', 5672)
         self.sHostaddress = dParams.get('sHostaddress', '127.0.0.1')
@@ -100,8 +100,7 @@ class PikaMixin(object):
         """
         sTopic = 'exec'
         sMark = "%15.5f" % time.time()
-        # FixMe: replace with sChartName
-        sMess = "%s|%s|%d|%s|Print|PY: %s" % (sTopic, self.sSymbol, self.iPeriod, sMark, sMark,)
+        sMess = "%s|%s|0|%s|Print|PY: %s" % (sTopic, self.sChartId, sMark, sMark,)
         if self.oQueue.empty():
             # only push if there is nothing to do
             self.eMt4PushQueue(sMess)
@@ -152,7 +151,7 @@ class PikaMixin(object):
         if not sMark:
             sMark = "%15.5f" % time.time()
         # FixMe: the sMess must be in the right format
-        # FixMe: replace with sChartName
+        # FixMe: replace with sChartId
         sMess = "retval|%s|%d|%s|%s|%s" % (self.sSymbol, self.iPeriod, sMark, sType, sValue,)
         self.eMt4PushQueue(sMess)
     
@@ -187,8 +186,12 @@ class PikaMixin(object):
                                       # auto_delete=True,
                                       type='topic')
             # oResult = oChannel.queue_declare(exclusive=True)
-            oResult = oChannel.queue_declare(queue=sQueueName, exclusive=True)
             # self.oListenerQueueName = oResult.method.queue
+            # I don't think we want exclusive here:
+            # we could have more than one listener,
+            # and we could have one listening for retvals...
+            oResult = oChannel.queue_declare(queue=sQueueName,
+                                             exclusive=False)
             self.oListenerQueueName = sQueueName
             for sBindingKey in lBindingKeys:
                 oChannel.queue_bind(exchange=self.sExchangeName,
@@ -198,14 +201,25 @@ class PikaMixin(object):
             time.sleep(0.1)
             self.oListenerChannel = oChannel
             
-    def eSendOnSpeaker(self, sType, sMsg):
+    def eSendOnSpeaker(self, sType, sMsg, sOrigin=None):
         """
         """
         if sType not in lKNOWN_TOPICS:
             # raise?
             return "ERROR: oSpeakerChannel unhandled topic" +sMsg
-        sPublishingKey = sType + '.' + self.sChartName
-        # sPublishingKey = 'tick'
+        sPublishingKey = sType + '.' + self.sChartId
+
+        if sOrigin:
+	    # This message is a reply in a cmd
+            lOrigin = sOrigin.split("|")
+            assert lOrigin[0] == 'cmd', repr(lOrigin)
+            sMark = lOrigin[3]
+            lMsg = sMsg.split("|")
+            assert lMsg[0] == 'retval', repr(lMsg)
+            lMsg[3] = sMark
+	    # Replace the mark in the reply with the mark in the cmd
+            sMsg = '|'.join(lMsg)
+            
         if self.oSpeakerChannel is None:
             self.eBindBlockingSpeaker()
 
@@ -285,11 +299,14 @@ class PikaMixin(object):
         if not hasattr(self, 'oListenerChannel'): return False
 
         if self.oListenerChannel:
-            self.oListenerChannel.queue_purge(queue=self.oListenerQueueName,
-                                              nowait=True)
+            # we dont want to purge the queue because we are just a listener
+            # blocking_connection.py", line 89, in ready...    self.poll_timeout)
+            # throws a select.error: (10004, 'Windows Error 0x2714')
+            # self.oListenerChannel.queue_purge(queue=self.oListenerQueueName,
+            #                                  nowait=True)
             self.oListenerChannel.queue_delete(callback=None,
                                                queue=self.oListenerQueueName,
-                                              nowait=True)
+                                               nowait=True)
       
         if self.oListenerThread:
             self.oListenerServer.stop()
@@ -330,7 +347,7 @@ def iMain():
     try:
         if oOptions.iVerbose >= 4:
             print "INFO: Listening with binding keys: " +" ".join(lArgs)
-        o = PikaMixin(**oOptions.__dict__)
+        o = PikaMixin('oUSDUSD_0_FFFF_0', **oOptions.__dict__)
         
         o.eBindBlockingListener('listen-for-ticks', lArgs)
 

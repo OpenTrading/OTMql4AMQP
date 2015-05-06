@@ -24,12 +24,10 @@ class PikaChart(Mq4Chart, PikaMixin):
     iDeliveryMode = 1 # (non-persisted)
     sContentType = 'text/plain'
 
-    def __init__(self, sSymbol, iPeriod, iIsEA, **dParams):
-        Mq4Chart.__init__(self, sSymbol, iPeriod, iIsEA, dParams)
-        PikaMixin.__init__(self, **dParams)
-        self.sSymbol = sSymbol
-        self.iPeriod = iPeriod
-        self.iIsEA = iIsEA
+    def __init__(self, sChartId, **dParams):
+        Mq4Chart.__init__(self, sChartId, dParams)
+        PikaMixin.__init__(self, sChartId, **dParams)
+        self.sChartId = sChartId
         
 def iMain():
     from PikaArguments import oParseOptions
@@ -49,13 +47,10 @@ def iMain():
     
     o = None
     try:
-        if oOptions.iVerbose >= 4:
-            oLOG.info("Publishing with message: " +" ".join(lArgs))
-        o = PikaChart('Mt4', 0, 0, **oOptions.__dict__)
-        iMax = 2
+        o = PikaChart('oUSDUSD_0_FFFF_0', **oOptions.__dict__)
+        iMax = 1
         i = 0
-        if oOptions.iVerbose >= 4:
-            oLOG.debug("Sending: %s %d times " % (sMsg, iMax,))
+        oLOG.indo("Sending: %s %d times " % (sMsg, iMax,))
         while i < iMax:
             # send a burst of iMax copies
             o.eSendOnSpeaker('cmd', sMsg)
