@@ -25,6 +25,7 @@ del amqp
 del anyjson
 
 from callme import exceptions as exc
+from callme import protocol as pr
 from callme import server
 
 oLOG = logging
@@ -105,10 +106,10 @@ class Server(server.Server):
 
             # process request
             if self._threaded:
-                p = threading.Thread(target=self._process_request,
+                oThread = threading.Thread(target=self._process_request,
                                      args=(request, message))
-                p.daemon = True
-                p.start()
+                oThread.daemon = True
+                oThread.start()
                 oLOG.debug("New thread spawned to process the {0} request."
                           .format(request))
             else:
@@ -157,7 +158,7 @@ def iMain():
     iMax = 20
     i = 0
     try:
-        sId1='Mt4Server'
+        sId1 = 'Mt4Server'
         proxy1 = callme.Proxy(server_id=sId1, timeout=20)
 #                 amqp_host='localhost',
 #                 amqp_user='guest',
@@ -170,7 +171,7 @@ def iMain():
                 print "DEBUG: RPC %d for: %s" % (i, sCmd,)
             try:
                 # sRetval = proxy1.sPySafeEval('str(' +sCmd +')')
-                sRetval = proxy1.eMt4PushQueue(sCmd)
+                sRetval = proxy1.eMq4PushQueue(sCmd)
                 print "INFO: " +str(sRetval)
                 break
             except callme.exceptions.RpcTimeout:

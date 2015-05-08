@@ -10,7 +10,7 @@ run this command second
 `
 python OTMql427/PikaChart.py "foo"
 `
-You should soon see `['foo']` appear 10 times in the first window.
+You should soon see `['foo']` appear in the first window.
 
 If it does not work, then solve this problem first, because it
 won't work from Python under Mt4 if it doesn't work here.
@@ -20,5 +20,5 @@ and bar information broadcast by the calls in `OnTimer` and `OnTick` in
 `MQL4/Experts/OTMql4/OTPyTestPikaEA.mq4`
 
 `OnTimer` is called every iTIMER_INTERVAL_SEC (10 sec.)
-which allows us to use Python to look for Pika inbound messages (not yet),
+which allows us to use Python to look for Pika inbound messages,
 or execute a stack of calls from Python to us in Metatrader.

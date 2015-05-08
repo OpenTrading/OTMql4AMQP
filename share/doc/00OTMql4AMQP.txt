@@ -14,7 +14,8 @@ Pika offers the advantage of being pure Python: no DLLs to compile
 or install. Pika communicates with AMQP servers, the most common
 open-source one being RabbitMQ http://www.rabbitmq.com
 You will need an AMPQ server installed, configured and running
-to use this project.
+to use this project. The code assumes the default server setup
+of username: guest, password: guest, virtual host: /.
 
 **This is a work in progress - a developers' pre-release version.**
 

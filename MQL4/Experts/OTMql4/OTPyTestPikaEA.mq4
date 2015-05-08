@@ -15,8 +15,10 @@ extern string uPASSWORD = "guest";
 extern string uEXCHANGE_NAME = "Mt4";
 // for testing - in real life we probably want "Mt4" in here for permissions
 extern string uVIRTUALHOST = "/";
+extern int iTIMER_INTERVAL_SEC = 10;
+
 // disabled if = 0 - callme is not working even though it should be. YMMV.
-extern int iCALLME_TIMEOUT = 0;
+int iCALLME_TIMEOUT = 0;
 
 extern string uStdOutFile="../../Logs/_test_PyTestPikaEA.txt";
 
@@ -36,7 +38,6 @@ Change to suit your own needs.
 #include <OTMql4/OTLibPy27.mqh>
 //unused #include <OTMql4/OTPyPika.mqh>
 
-int iTIMER_INTERVAL_SEC = 10;
 int iCONNECTION = -1;
 double fPY_PIKA_CONNECTION_USERS = 0.0;
 
@@ -63,7 +64,6 @@ void vPanic(string uReason) {
 }
 
 int iIsEA=1;
-string uCHART_ID="";
 double fDebugLevel=0;
 
 string uSafeString(string uSymbol) {
@@ -73,6 +73,7 @@ string uSafeString(string uSymbol) {
     uSymbol = uStringReplace(uSymbol, ".", "");
     return(uSymbol);
 }
+string uCHART_ID = uChartName(uSafeString(Symbol()), Period(), ChartID(), iIsEA);
 
 
 int OnInit() {
@@ -114,6 +115,11 @@ int OnInit() {
 	    vPanic(uRetval);
 	    return(-2);
 	}
+	if (StringFind(uRetval, "Error", 0) >= 0) {
+	    uRetval = "PANIC: import pika failed:"  + uRetval;
+	    vPanic(uRetval);
+	    return(-2);
+	}
 	vPyExecuteUnicode("from OTMql427 import PikaChart");
 	vPyExecuteUnicode("sFoobar = '%s : %s' % (sys.last_type, sys.last_value,)");
 	uRetval = uPySafeEval("sFoobar");
@@ -126,7 +132,6 @@ int OnInit() {
 	    vDebug(uRetval);
 	}
 
-	uCHART_ID = uChartName(uSafeString(uSYMBOL), Period(), ChartID(), iIsEA);
 	// for testing - in real life we probably want the PID in here
 	uExchangeName = uEXCHANGE_NAME;
 	vPyExecuteUnicode(uCHART_ID+"=PikaChart.PikaChart(" +
@@ -195,7 +200,10 @@ void OnTimer() {
     string uRetval="";
     string uMessage;
     string uMess, uInfo;
+    string uType = "timer";
+    string uMark;
 
+    uCHART_ID = uChartName(uSafeString(Symbol()), Period(), ChartID(), iIsEA);
     /* timer events can be called before we are ready */
     if (GlobalVariableCheck("fPyPikaConnectionUsers") == false) {
       return;
@@ -206,11 +214,9 @@ void OnTimer() {
         return;
     }
 
-    // same as Time[0] - the bar time not the real time
-    datetime tTime=iTime(uSYMBOL, iTIMEFRAME, 0);
-    string uTime = TimeToStr(tTime, TIME_DATE|TIME_MINUTES) + " ";
-    string uType = "timer";
-    string uMark;
+    // FixMe: could use GetTickCount but we may not be logged in
+    // but maybe TimeCurrent requires us to be logged in?
+    string uTime = IntegerToString(TimeCurrent());
     
     uInfo = "0";
     uRetval = uPySafeEval(uCHART_ID+".eHeartBeat("
@@ -221,10 +227,10 @@ void OnTimer() {
 	return;
     }
     // There may be sleeps for threads here
-    // We may want to loop over zMt4PopQueue to pop many commands
-    uRetval = uPySafeEval(uCHART_ID+".zMt4PopQueue()");
+    // We may want to loop over zMq4PopQueue to pop many commands
+    uRetval = uPySafeEval(uCHART_ID+".zMq4PopQueue()");
     if (StringFind(uRetval, "ERROR:", 0) >= 0) {
-	uRetval = "ERROR: zMt4PopQueue failed: "  + uRetval;
+	uRetval = "ERROR: zMq4PopQueue failed: "  + uRetval;
 	vWarn("OnTimer: " +uRetval);
 	return;
     }
@@ -241,7 +247,7 @@ void OnTimer() {
 	    // if the command is cmd|  - return a value as a retval|
 	    // We want the sMark from uRetval instead of uTime
 	    // but we will do than in Python
-	    uMark = 0;
+	    uMark = "0";
 	    uMess  = zOTLibSimpleFormatRetval("retval", uCHART_ID, 0, uMark, uMess);
 	    eSendOnSpeaker("retval", uMess, uRetval);
 	    vDebug("OnTimer: retvaled " +uMess);
@@ -257,13 +263,13 @@ void OnTimer() {
 
 void OnTick() {
     static datetime tNextbartime;
-
     bool bNewBar=false;
     string uType;
     string uInfo;
     string uMess, uRetval;
 
-    fPY_PIKA_CONNECTION_USERS=GlobalVariableGet("fPyPikaConnectionUsers");
+    uCHART_ID = uChartName(uSafeString(Symbol()), Period(), ChartID(), iIsEA);
+   fPY_PIKA_CONNECTION_USERS=GlobalVariableGet("fPyPikaConnectionUsers");
     if (fPY_PIKA_CONNECTION_USERS < 0.5) {
 	vWarn("OnTick: no connection users");
         return;
@@ -274,9 +280,11 @@ void OnTick() {
         return;
     }
 
+    // FixMe: could use GetTickCount but we may not be logged in
+    // but maybe TimeCurrent requires us to be logged in?
+    string uTime = IntegerToString(TimeCurrent());
     // same as Time[0]
     datetime tTime=iTime(uSYMBOL, iTIMEFRAME, 0);
-    string uTime = TimeToStr(tTime, TIME_DATE|TIME_MINUTES) + " ";
 
     if (tTime != tNextbartime) {
         iBAR += 1; // = Bars - 100
@@ -298,7 +306,6 @@ void OnTick() {
 
 void eSendOnSpeaker(string uType, string uMess, string uOriginCmd="") {
     string uRetval;
-
     if (uOriginCmd == "") {
 	uMess = uCHART_ID +".eSendOnSpeaker('" +uType +"', '" +uMess +"')";
     } else {
@@ -315,7 +322,7 @@ void eSendOnSpeaker(string uType, string uMess, string uOriginCmd="") {
 	vWarn("eSendOnSpeaker: ERROR: " +uRetval);
 	return;
     } else if (uRetval != " : ") {
-	vDebug("OnTick:  WTF?" +uMess);
+	vDebug("eSendOnSpeaker:  WTF?" +uMess);
     } else {
 	// pass
     }
@@ -331,6 +338,7 @@ void OnDeinit(const int iReason) {
 	if (iCONNECTION < 1) {
 	    vWarn("OnDeinit: unallocated connection");
 	} else {
+	    vInfo("OnDeinit: closing the connection");
 	    vPyExecuteUnicode(uCHART_ID +".bCloseConnectionSockets()");
 	}
 	GlobalVariableDel("fPyPikaConnection");
@@ -344,5 +352,8 @@ void OnDeinit(const int iReason) {
 	GlobalVariableSet("fPyPikaConnectionUsers", fPY_PIKA_CONNECTION_USERS);
 	vDebug("OnDeinit: decreased, value of fPyPikaConnectionUsers to: " + fPY_PIKA_CONNECTION_USERS);
     }
+    
+    vDebug("OnDeinit: delete of the chart in Python");
+    vPyExecuteUnicode(uCHART_ID +".vRemove()");
 
 }

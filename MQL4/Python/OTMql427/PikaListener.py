@@ -17,7 +17,6 @@ oCONNECTION = None
 import sys, logging
 import time
 import threading
-import Queue
 
 import pika
 
@@ -32,11 +31,6 @@ else:
         import PikaCallme
         from Mt4SafeEval import sPySafeEval
         ePikaCallme = ""
-        def _run_server_thread(server):
-            t = threading.Thread(target=server.start)
-            t.daemon = True
-            t.start()
-            return t
     except ImportError, e:
         ePikaCallme = "Failed to import PikaCallme: " + str(e)
         PikaCallme = None
@@ -75,7 +69,6 @@ class PikaMixin(object):
         self.oProperties = pika.BasicProperties(content_type=self.sContentType,
                                                 delivery_mode=self.iDeliveryMode)
         self.oConnection = None
-        self.oQueue = Queue.Queue()
         
     def oCreateConnection(self):
         global oCONNECTION
@@ -90,70 +83,6 @@ class PikaMixin(object):
                 raise
             
         return self.oConnection
-    
-    def eHeartBeat(self, iTimeout=0):
-        """
-        The heartbeat is usually called from the Mt4 OnTimer.
-        We push a simple Print exec command onto the queue of things
-        for Mt4 to do if there's nothing else happening. This way we get 
-        a message in the Mt4 Log,  but with a string made in Python.
-        """
-        sTopic = 'exec'
-        sMark = "%15.5f" % time.time()
-        sMess = "%s|%s|0|%s|Print|PY: %s" % (sTopic, self.sChartId, sMark, sMark,)
-        if self.oQueue.empty():
-            # only push if there is nothing to do
-            self.eMt4PushQueue(sMess)
-            
-        # while we are here flush stdout so we can read the log file
-        # whilst the program is running
-        sys.stdout.flush()
-        sys.stderr.flush()
-
-        # now for the hard part - see if there is anything to receive
-        # does this block? do we set a timeout?
-        if self.oListenerChannel is None:
-            lBindingKeys = ['cmd.#']
-            self.vMt4RecvOnListener("listen-for-commands", lBindingKeys)
-
-        # This is the disabled callme server code
-        if iTimeout > 0 and self.oListenerServer:
-            # join it and do a little work but dont block for long
-            # cant use self.oListenerServer.wait()
-            print "DEBUG: listening on server"
-            self.oListenerServer.drain_event(iTimeout=iTimeout)
-            
-        return ""
-    
-    def zMt4PopQueue(self, sIgnored=""):
-        """
-        The PopQueue is usually called from the Mt4 OnTimer.
-        We use is a queue of things for the ProcessCommand in Mt4.
-        """
-        if self.oQueue.empty():
-            return ""
-        
-        # while we are here flush stdout so we can read the log file
-        # whilst the program is running
-        sys.stdout.flush()
-        sys.stderr.flush()
-
-        return self.oQueue.get()
-    
-    def eMt4PushQueue(self, sMessage):
-        """
-        """
-        self.oQueue.put(sMessage)
-        return ""
-    
-    def eMt4Retval(self, sMark, sType, sValue):
-        sTopic = 'retval'
-        if not sMark:
-            sMark = "%15.5f" % time.time()
-        # FixMe: the sMess must be in the right format
-        # FixMe: replace with sChartId
-        sMess = "retval|%s|%d|%s|%s|%s" % (self.sSymbol, self.iPeriod, sMark, sType, sValue,)
-        self.eMt4PushQueue(sMess)
     
     def eBindBlockingSpeaker(self):
         """
@@ -207,7 +136,9 @@ class PikaMixin(object):
         if sType not in lKNOWN_TOPICS:
             # raise?
             return "ERROR: oSpeakerChannel unhandled topic" +sMsg
-        sPublishingKey = sType + '.' + self.sChartId
+        # we will break the sChartId up into dots from the underscores
+        # That way the end consumer can look at the feed selectively
+        sPublishingKey = sType + '.' + self.sChartId.replace('_', '.')
 
         if sOrigin:
 	    # This message is a reply in a cmd
@@ -233,17 +164,7 @@ class PikaMixin(object):
 
         return ""
 
-    def vMt4CallbackOnListener(self, oChannel, oMethod, oProperties, sBody):
-        assert sBody
-        sMess = "vMt4CallbackOnListener Listened: %r" % sBody
-        print "INFO: " +sMess
-        # we will assume that the lBody[0]
-        # is a "|" seperated list of command and arguments
-        # FixMe: the sMess must be in the right format
-        self.eMt4PushQueue(sBody)
-        oChannel.basic_ack(delivery_tag=oMethod.delivery_tag)
-
-    def vMt4RecvOnListener(self, sQueueName, lBindingKeys):
+    def vPikaRecvOnListener(self, sQueueName, lBindingKeys):
         if self.oListenerChannel is None:
             self.eBindBlockingListener(sQueueName, lBindingKeys)
         assert self.oListenerChannel
@@ -251,7 +172,7 @@ class PikaMixin(object):
         # http://www.rabbitmq.com/amqp-0-9-1-reference.html#basic.consume
         # no-wait no-wait
         # not in pika.channel.Channel.basic_consume
-        self.oListenerChannel.basic_consume(self.vMt4CallbackOnListener,
+        self.oListenerChannel.basic_consume(self.vPikaCallbackOnListener,
                                             queue=self.oListenerQueueName,
                                             exclusive=True,
                                             no_ack=False
@@ -276,22 +197,6 @@ class PikaMixin(object):
                                             # exclusive=True,
         )
         
-    def eStartCallmeServer(self, sId='Mt4Server'):
-        # The callme server is optional and may not be installed
-        if not PikaCallme:
-            return ePikaCallme
-        if self.oListenerServer is None:
-            oServer = PikaCallme.Server(server_id=sId)
-            # danger - we are running this in the main thread
-            # self.oListenerThread = _run_server_thread(oServer)
-            oServer.connect()
-            oServer.register_function(sPySafeEval, 'sPySafeEval')
-            oServer.register_function(self.eMt4PushQueue, 'eMt4PushQueue')
-            self.oListenerServer = oServer
-            print "DEBUG: started the callme server %d" % id(oServer)
-            
-        return ""
-
     def bCloseConnectionSockets(self, oOptions=None):
         global oCONNECTION
 
@@ -304,8 +209,8 @@ class PikaMixin(object):
             # throws a select.error: (10004, 'Windows Error 0x2714')
             # self.oListenerChannel.queue_purge(queue=self.oListenerQueueName,
             #                                  nowait=True)
-            self.oListenerChannel.queue_delete(callback=None,
-                                               queue=self.oListenerQueueName,
+            # TypeError: queue_delete() got an unexpected keyword argument 'callback'
+            self.oListenerChannel.queue_delete(queue=self.oListenerQueueName,
                                                nowait=True)
       
         if self.oListenerThread:
@@ -347,7 +252,7 @@ def iMain():
     try:
         if oOptions.iVerbose >= 4:
             print "INFO: Listening with binding keys: " +" ".join(lArgs)
-        o = PikaMixin('oUSDUSD_0_FFFF_0', **oOptions.__dict__)
+        o = PikaMixin('oUSDUSD_0_PIKA_0', **oOptions.__dict__)
         
         o.eBindBlockingListener('listen-for-ticks', lArgs)
 
@@ -383,7 +288,7 @@ def iMain():
             print "DEBUG: Waiting for message queues to flush..."
             o.bCloseConnectionSockets(oOptions)
             time.sleep(1.0)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, pika.exceptions.ConsumerCancelled,):
         pass
 
 if __name__ == '__main__':
