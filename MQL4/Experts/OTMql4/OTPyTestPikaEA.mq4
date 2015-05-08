@@ -105,21 +105,15 @@ int OnInit() {
 	iACCNUM=AccountNumber();
 
 	uArg="import pika";
-	vPyExecuteUnicode(uArg);
-	// VERY IMPORTANT: if the import failed we MUST PANIC
-	vPyExecuteUnicode("sFoobar = '%s : %s' % (sys.last_type, sys.last_value,)");
-	uRetval=uPyEvalUnicode("sFoobar");
-	if (StringFind(uRetval, "exceptions.SystemError", 0) >= 0) {
-	    // Were seeing this during testing after an uninit 2 reload
-	    uRetval = "PANIC: import pika failed - we MUST restart Mt4:"  + uRetval;
-	    vPanic(uRetval);
+	iRetval = iPySafeExec(uArg);
+	if (iRetval <= -2) {
+	    // VERY IMPORTANT: if the ANYTHING fails with SystemError we MUST PANIC
+	    ExpertRemove();
+	    return(-2);
+	} else if (iRetval <= -1) {
 	    return(-2);
 	}
-	if (StringFind(uRetval, "Error", 0) >= 0) {
-	    uRetval = "PANIC: import pika failed:"  + uRetval;
-	    vPanic(uRetval);
-	    return(-2);
-	}
+	
 	vPyExecuteUnicode("from OTMql427 import PikaChart");
 	vPyExecuteUnicode("sFoobar = '%s : %s' % (sys.last_type, sys.last_value,)");
 	uRetval = uPySafeEval("sFoobar");
@@ -144,6 +138,7 @@ int OnInit() {
 			  "iDebugLevel=" + MathRound(fDebugLevel) + ", " +
 			  ")");
 	vPyExecuteUnicode("sFoobar = '%s : %s' % (sys.last_type, sys.last_value,)");
+	
 	uRetval = uPySafeEval("sFoobar");
 	if (StringFind(uRetval, "exceptions", 0) >= 0) {
 	    uRetval = "ERROR: PikaChart.PikaChart failed: "  + uRetval;
@@ -153,6 +148,7 @@ int OnInit() {
 	    uRetval = "PikaChart.PikaChart errored: "  + uRetval;
 	    vWarn(uRetval);
 	}
+	Comment(uCHART_ID);
 	
 	iCONNECTION = iPyEvalInt("id(" +uCHART_ID +".oCreateConnection())");
 	// FixMe:! theres no way to no if this errored! No NAN in Mt4
@@ -355,5 +351,6 @@ void OnDeinit(const int iReason) {
     
     vDebug("OnDeinit: delete of the chart in Python");
     vPyExecuteUnicode(uCHART_ID +".vRemove()");
+    Comment("");
 
 }
