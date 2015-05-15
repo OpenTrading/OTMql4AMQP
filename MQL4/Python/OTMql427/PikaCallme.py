@@ -151,7 +151,7 @@ def iMain():
     oOptions = oArgParser.parse_args()
     lArgs = oOptions.lArgs
 
-    assert lArgs
+    assert lArgs, "Need the command to send on the commandline"
     sCmd = lArgs[0]
 
     o = None

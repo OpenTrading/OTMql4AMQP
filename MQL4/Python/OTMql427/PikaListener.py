@@ -75,7 +75,7 @@ class PikaMixin(object):
         if not self.oConnection:
             try:
                 oConnection = pika.BlockingConnection(self.oParameters)
-                assert oConnection
+                assert oConnection, "oCreateConnection: no oConnection created"
                 self.oConnection = oConnection
                 oCONNECTION = oConnection
             except Exception, e:
@@ -130,35 +130,34 @@ class PikaMixin(object):
             time.sleep(0.1)
             self.oListenerChannel = oChannel
             
-    def eSendOnSpeaker(self, sType, sMsg, sOrigin=None):
+    def eSendOnSpeaker(self, sType, sMess, sOrigin=None):
         """
         """
         if sType not in lKNOWN_TOPICS:
-            # raise?
-            return "ERROR: oSpeakerChannel unhandled topic" +sMsg
+            sRetval = "eSendOnSpeaker: oSpeakerChannel unhandled topic " +sMess
+            vError(sRetval)
+            return sRetval
         # we will break the sChartId up into dots from the underscores
         # That way the end consumer can look at the feed selectively
         sPublishingKey = sType + '.' + self.sChartId.replace('_', '.')
 
-        if sOrigin:
-	    # This message is a reply in a cmd
+        if sOrigin and sOrigin.split("|")[0] == 'cmd':
             lOrigin = sOrigin.split("|")
-            assert lOrigin[0] == 'cmd', repr(lOrigin)
+	    # This message is a reply in a cmd
             sMark = lOrigin[3]
-            lMsg = sMsg.split("|")
-            assert lMsg[0] == 'retval', repr(lMsg)
-            lMsg[3] = sMark
+            lMess = sMess.split("|")
+            assert lMess[0] == 'retval', "eSendOnSpeaker: lMess[0] should be retval: " +repr(lMess)
+            lMess[3] = sMark
 	    # Replace the mark in the reply with the mark in the cmd
-            sMsg = '|'.join(lMsg)
+            sMess = '|'.join(lMess)
             
         if self.oSpeakerChannel is None:
             self.eBindBlockingSpeaker()
 
-        assert self.oSpeakerChannel, "ERROR: oSpeakerChannel is null"
-        
+        assert self.oSpeakerChannel, "eSendOnSpeaker: oSpeakerChannel is null"
         self.oSpeakerChannel.basic_publish(exchange=self.sExchangeName,
                                            routing_key=sPublishingKey,
-                                           body=sMsg,
+                                           body=sMess,
                                            mandatory=False, immediate=False,
                                            properties=self.oProperties)
 
@@ -167,7 +166,7 @@ class PikaMixin(object):
     def vPikaRecvOnListener(self, sQueueName, lBindingKeys):
         if self.oListenerChannel is None:
             self.eBindBlockingListener(sQueueName, lBindingKeys)
-        assert self.oListenerChannel
+        assert self.oListenerChannel, "vPikaRecvOnListener: oListenerChannel is null"
         #FixMe: does this block?
         # http://www.rabbitmq.com/amqp-0-9-1-reference.html#basic.consume
         # no-wait no-wait
@@ -187,7 +186,7 @@ class PikaMixin(object):
     def vPyRecvOnListener(self, sQueueName,  lBindingKeys):
         if self.oListenerChannel is None:
             self.eBindBlockingListener(sQueueName,  lBindingKeys)
-        assert self.oListenerChannel
+        assert self.oListenerChannel, "vPyRecvOnListener: oListenerChannel is null"
         #FixMe: does this block? no
         # http://www.rabbitmq.com/amqp-0-9-1-reference.html#basic.consume
         # no-wait no-wait
@@ -246,7 +245,7 @@ def iMain():
     lArgs = oOptions.lArgs
 
     # FixMe: if no arguments, run a REPL loop dispatching commands
-    assert lArgs
+    assert lArgs, "command line arguments required"
 
     o = None
     try:

@@ -12,6 +12,7 @@ as arguments to this script, or --help to see the options.
 
 import sys, logging
 import time
+import traceback
 import pika
 
 oLOG = logging
@@ -79,7 +80,7 @@ class PikaChart(Mq4Chart, PikaMixin):
         return ""
     
     def vPikaCallbackOnListener(self, oChannel, oMethod, oProperties, sBody):
-        assert sBody
+        assert sBody, "vPikaCallbackOnListener: no sBody received"
         sMess = "vPikaCallbackOnListener Listened: %r" % sBody
         print "INFO: " +sMess
         # we will assume that the lBody[0]
@@ -116,7 +117,7 @@ def iMain():
 
     assert lArgs, "Give the command you want to send as arguments to this script"
 
-    sSymbol = 'USDUSD'
+    sSymbol = 'ANY'
     iPeriod = 0
     sTopic = 'cmd'
     sMark = "%15.5f" % time.time()
@@ -124,10 +125,10 @@ def iMain():
     
     o = None
     try:
-        o = PikaChart('oUSDUSD_0_FFFF_0', **oOptions.__dict__)
+        o = PikaChart('oANY_0_FFFF_0', **oOptions.__dict__)
         iMax = 1
         i = 0
-        oLOG.info("Sending: %s %d times " % (sMsg, iMax,))
+        print "Sending: %s %d times " % (sMsg, iMax,)
         while i < iMax:
             # send a burst of iMax copies
             o.eSendOnSpeaker('cmd', sMsg)
@@ -137,7 +138,7 @@ def iMain():
     except KeyboardInterrupt:
         pass
     except Exception, e:
-        print(str(e))
+        print(traceback.format_exc(10))
 
     try:
         if o:
