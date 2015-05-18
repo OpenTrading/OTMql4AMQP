@@ -17,7 +17,8 @@ def oParseOptions(sUsage):
     """
     oArgParser = ArgumentParser(description=sUsage)
     # rabbit
-    oArgParser.add_argument("-a", "--address", action="store",
+    oArgParser.add_argument("-a", "--address",
+                            action="store",
                             dest="sHostaddress",
                             default="127.0.0.1",
                             help="the TCP address to subscribe on (default 127.0.0.1)")
@@ -39,8 +40,5 @@ def oParseOptions(sUsage):
     oArgParser.add_argument("-v", "--verbose", action="store",
                             dest="iVerbose", type=int, default=4,
                             help="the verbosity, 0 for silent 4 max (default 4)")
-    oArgParser.add_argument('lArgs', action="store",
-                            nargs="+",
-                            help="the message to send (required)")
     return(oArgParser)
 

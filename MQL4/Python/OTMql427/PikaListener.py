@@ -14,7 +14,9 @@ Give  --help to see the options.
 # we assign the connection object to the module variable oCONNECTION.
 oCONNECTION = None
 
-import sys, logging
+import sys
+import json
+import logging
 import time
 import threading
 
@@ -35,8 +37,10 @@ else:
         ePikaCallme = "Failed to import PikaCallme: " + str(e)
         PikaCallme = None
 
-lKNOWN_TOPICS=['tick', 'timer', 'retval', 'bar', 'cmd'] # 'exec'
+from OTLibLog import *
 oLOG = logging
+
+lKNOWN_TOPICS=['tick', 'timer', 'retval', 'bar', 'cmd', 'eval'] # 'exec'
 
 class PikaMixin(object):
 
@@ -130,31 +134,45 @@ class PikaMixin(object):
             time.sleep(0.1)
             self.oListenerChannel = oChannel
             
-    def eSendOnSpeaker(self, sType, sMess, sOrigin=None):
+    def eReturnOnSpeaker(self, sType, sMess, sOrigin):
         """
         """
+        if sType not in lKNOWN_TOPICS:
+            sRetval = "eReturnOnSpeaker: oSpeakerChannel unhandled topic " +sMess
+            vError(sRetval)
+            return sRetval
+        
+        assert sOrigin, "eReturnOnSpeaker: oSpeakerChannel empty sOrigin"
+        lOrigin = sOrigin.split("|")
+        assert lOrigin, "eReturnOnSpeaker: oSpeakerChannel empty lOrigin"
+        assert lOrigin[0] in ['eval', 'cmd', 'json', 'exec'], \
+            "eReturnOnSpeaker: oSpeakerChannel not cmd " +sOrigin
+        # This message is a reply in a cmd
+        sMark = lOrigin[3]
+        assert sMark, "eReturnOnSpeaker: lOrigin[3] is null: " +repr(lOrigin)
+        lMess = sMess.split("|")
+        assert lMess[0] == 'retval', \
+            "eReturnOnSpeaker: lMess[0] should be retval: " +repr(lMess)
+        lMess[3] = sMark
+        # Replace the mark in the reply with the mark in the cmd
+        sMess = '|'.join(lMess)
+        
+        return self.eSendOnSpeaker(sType, sMess)
+    
+    def eSendOnSpeaker(self, sType, sMess):
         if sType not in lKNOWN_TOPICS:
             sRetval = "eSendOnSpeaker: oSpeakerChannel unhandled topic " +sMess
             vError(sRetval)
             return sRetval
-        # we will break the sChartId up into dots from the underscores
-        # That way the end consumer can look at the feed selectively
-        sPublishingKey = sType + '.' + self.sChartId.replace('_', '.')
-
-        if sOrigin and sOrigin.split("|")[0] == 'cmd':
-            lOrigin = sOrigin.split("|")
-	    # This message is a reply in a cmd
-            sMark = lOrigin[3]
-            lMess = sMess.split("|")
-            assert lMess[0] == 'retval', "eSendOnSpeaker: lMess[0] should be retval: " +repr(lMess)
-            lMess[3] = sMark
-	    # Replace the mark in the reply with the mark in the cmd
-            sMess = '|'.join(lMess)
-            
         if self.oSpeakerChannel is None:
             self.eBindBlockingSpeaker()
 
         assert self.oSpeakerChannel, "eSendOnSpeaker: oSpeakerChannel is null"
+        
+        # we will break the sChartId up into dots from the underscores
+        # That way the end consumer can look at the feed selectively
+        sPublishingKey = sType + '.' + self.sChartId.replace('_', '.')
+
         self.oSpeakerChannel.basic_publish(exchange=self.sExchangeName,
                                            routing_key=sPublishingKey,
                                            body=sMess,
@@ -213,9 +231,8 @@ class PikaMixin(object):
                                                nowait=True)
       
         if self.oListenerThread:
-            self.oListenerServer.stop()
+            self.oListenerThread.stop()
             self.oListenerThread.join()
-            self.oListenerServer = None
             self.oListenerThread = None
         elif self.oListenerServer:
             self.oListenerServer.disconnect()
@@ -241,19 +258,22 @@ def iMain():
     
     sUsage = __doc__.strip()
     oArgParser = oParseOptions(sUsage)
+    oArgParser.add_argument('lArgs', action="store",
+                            nargs="*",
+                            help="the message to send (required)")
     oOptions = oArgParser.parse_args()
     lArgs = oOptions.lArgs
 
     # FixMe: if no arguments, run a REPL loop dispatching commands
     assert lArgs, "command line arguments required"
 
-    o = None
+    oChart = None
     try:
         if oOptions.iVerbose >= 4:
             print "INFO: Listening with binding keys: " +" ".join(lArgs)
-        o = PikaMixin('oUSDUSD_0_PIKA_0', **oOptions.__dict__)
+        oChart = PikaMixin('oUSDUSD_0_PIKA_0', **oOptions.__dict__)
         
-        o.eBindBlockingListener('listen-for-ticks', lArgs)
+        oChart.eBindBlockingListener('listen-for-ticks', lArgs)
 
         i=0
         while i < 5:
@@ -262,7 +282,7 @@ def iMain():
                 print "DEBUG: Listening: " +str(i)
             try:
                 #raises:  pika.exceptions.ConnectionClosed
-                o.vPyRecvOnListener('listen-for-ticks', lArgs)
+                oChart.vPyRecvOnListener('listen-for-ticks', lArgs)
                 break
             except  pika.exceptions.ConnectionClosed:
                 print "WARN: ConnectionClosed vPyRecvOnListener " +str(i)
@@ -271,8 +291,8 @@ def iMain():
         while True:
             i += 1
             try:
-                # o.oListenerChannel.start_consuming()
-                o.oConnection.process_data_events()
+                # oChart.oListenerChannel.start_consuming()
+                oChart.oConnection.process_data_events()
             except  pika.exceptions.ConnectionClosed:
                 print "WARN: ConnectionClosed process_data_events" +str(i)
                 time.sleep(1)
@@ -283,9 +303,9 @@ def iMain():
         print "ERROR: " +str(e)
 
     try:
-        if o:
+        if oChart:
             print "DEBUG: Waiting for message queues to flush..."
-            o.bCloseConnectionSockets(oOptions)
+            oChart.bCloseConnectionSockets(oOptions)
             time.sleep(1.0)
     except (KeyboardInterrupt, pika.exceptions.ConsumerCancelled,):
         pass

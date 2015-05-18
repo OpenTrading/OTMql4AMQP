@@ -19,6 +19,7 @@ oLOG = logging
 
 from Mq4Chart import Mq4Chart
 from PikaListener import PikaMixin
+from Mt4SafeEval import sPySafeEval
 
 if True:
     ePikaCallme = "PikaCallme disabled "
@@ -29,11 +30,22 @@ else:
     # It has prerequisities: kombu httplib2 amqp
     try:
         import PikaCallme
-        from Mt4SafeEval import sPySafeEval
         ePikaCallme = ""
     except ImportError, e:
         ePikaCallme = "Failed to import PikaCallme: " + str(e)
         PikaCallme = None
+
+# FixMe:
+# The messaging to and from OTMql4Py is still being done with a
+# very simple format:
+#       sMsgType|sChartId|sIgnored|sMark|sPayload
+# where sMsgType is one of: cmd eval (outgoing), timer tick retval (incoming);
+#       sChartId is the Mt4 chart sChartId the message is to or from;
+#       sMark is a simple floating point timestamp, with milliseconds;
+# and   sPayload is command|arg1|arg2... (outgoing) or type|value (incoming),
+#       where type is one of: bool int double string json.
+# This breaks if the sPayload args or value contain a | 
+# We will probably replace this with json or pickled serialization, or kombu.
 
 class PikaChart(Mq4Chart, PikaMixin):
 
@@ -52,11 +64,12 @@ class PikaChart(Mq4Chart, PikaMixin):
         for Mt4 to do if there's nothing else happening. This way we get 
         a message in the Mt4 Log,  but with a string made in Python.
         """
-        sTopic = 'exec'
-        sMark = "%15.5f" % time.time()
-        sMess = "%s|%s|0|%s|Print|PY: %s" % (sTopic, self.sChartId, sMark, sMark,)
         if self.oQueue.empty():
             # only push if there is nothing to do
+            sTopic = 'exec'
+            sMark = "%15.5f" % time.time()
+            sInfo = "PY: " +sMark
+            sMess = "%s|%s|0|%s|Print|%s" % (sTopic, self.sChartId, sMark, sInfo,)
             self.eMq4PushQueue(sMess)
             
         # while we are here flush stdout so we can read the log file
@@ -67,7 +80,7 @@ class PikaChart(Mq4Chart, PikaMixin):
         # now for the hard part - see if there is anything to receive
         # does this block? do we set a timeout?
         if self.oListenerChannel is None:
-            lBindingKeys = ['cmd.#']
+            lBindingKeys = ['cmd.#', 'eval.#', 'json.#']
             self.vPikaRecvOnListener("listen-for-commands", lBindingKeys)
 
         # This is the disabled callme server code
@@ -82,13 +95,44 @@ class PikaChart(Mq4Chart, PikaMixin):
     def vPikaCallbackOnListener(self, oChannel, oMethod, oProperties, sBody):
         assert sBody, "vPikaCallbackOnListener: no sBody received"
         sMess = "vPikaCallbackOnListener Listened: %r" % sBody
-        print "INFO: " +sMess
-        # we will assume that the lBody[0]
+        oChannel.basic_ack(delivery_tag=oMethod.delivery_tag)
+        sys.stdout.write("INFO: " +sMess +"\n")
+        sys.stdout.flush()
+        # we will assume that the sBody
         # is a "|" seperated list of command and arguments
         # FixMe: the sMess must be in the right format
-        self.eMq4PushQueue(sBody)
-        oChannel.basic_ack(delivery_tag=oMethod.delivery_tag)
-
+        # FixMe: refactor for multiple charts:
+        # we must push to the right chart
+        try:
+            lArgs = sBody.split('|')
+            if lArgs[0] == 'cmd':
+                self.eMq4PushQueue(sBody)
+                return
+            if lArgs[0] == 'eval':
+                lRetval = ['retval']
+                lRetval += lArgs[1:3]
+                sCmd = lArgs[4]
+                if len(lArgs) > 5:
+                    sCmd += '(' +lArgs[5] +')'
+                sRetval = sPySafeEval(sCmd)
+                if sRetval.find('ERROR:') >= 0:
+                    lRetval += ['error', sRetval]
+                else:
+                    lRetval += ['string', sRetval]
+                sReturn = '|'.join(lRetval)
+                self.eReturnOnSpeaker('retval', sReturn, sBody)
+                return
+            if lArgs[0] == 'json':
+                # FixMe: but why?
+                sys.stdout.write("WARN: not yet json: " +sBody +"\n")
+                sys.stdout.flush()
+                return
+        except Exception, e:
+            sys.stdout.write("ERROR: " +str(e) +"\n" + \
+                             traceback.format_exc(10) +"\n")
+            sys.stdout.flush()
+            sys.exc_clear()
+            
     # unused
     def eStartCallmeServer(self, sId='Mt4Server'):
         # The callme server is optional and may not be installed
@@ -112,6 +156,9 @@ def iMain():
     
     sUsage = __doc__.strip()
     oArgParser = oParseOptions(sUsage)
+    oArgParser.add_argument('lArgs', action="store",
+                            nargs="*",
+                            help="the message to send (required)")
     oOptions = oArgParser.parse_args()
     lArgs = oOptions.lArgs
 
@@ -123,15 +170,15 @@ def iMain():
     sMark = "%15.5f" % time.time()
     sMsg = "%s|%s|%d|%s|%s" % (sTopic, sSymbol, iPeriod, sMark, '|'.join(lArgs),)
     
-    o = None
+    oChart = None
     try:
-        o = PikaChart('oANY_0_FFFF_0', **oOptions.__dict__)
+        oChart = PikaChart('oANY_0_FFFF_0', **oOptions.__dict__)
         iMax = 1
         i = 0
         print "Sending: %s %d times " % (sMsg, iMax,)
         while i < iMax:
             # send a burst of iMax copies
-            o.eSendOnSpeaker('cmd', sMsg)
+            oChart.eSendOnSpeaker('cmd', sMsg)
             i += 1
         # print "Waiting for message queues to flush..."
         time.sleep(1.0)
@@ -141,9 +188,9 @@ def iMain():
         print(traceback.format_exc(10))
 
     try:
-        if o:
+        if oChart:
             print "DEBUG: Waiting for message queues to flush..."
-            o.bCloseConnectionSockets(oOptions)
+            oChart.bCloseConnectionSockets(oOptions)
             time.sleep(1.0)
     except KeyboardInterrupt:
         pass

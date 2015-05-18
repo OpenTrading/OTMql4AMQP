@@ -24,25 +24,24 @@ extern string uStdOutFile="../../Logs/_test_PyTestPikaEA.txt";
 
 #include <WinUser32.mqh>
 /*
-This provides the function sBarInfo which puts together the
+This provided the function uBarInfo which puts together the
 information you want send to a remote client on every bar.
 Change to suit your own needs.
-*/
 #include <OTMql4/OTBarInfo.mqh>
+*/
 
 #include <OTMql4/OTLibLog.mqh>
 #include <OTMql4/OTLibStrings.mqh>
 #include <OTMql4/OTLibMt4ProcessCmd.mqh>
 #include <OTMql4/OTLibProcessCmd.mqh>
 #include <OTMql4/OTLibSimpleFormatCmd.mqh>
+#include <OTMql4/OTLibJsonFormat.mqh>
 #include <OTMql4/OTLibPy27.mqh>
 #include <OTMql4/OTPyChart.mqh>
 
 int iCONNECTION = -1;
 double fPY_PIKA_CONNECTION_USERS = 0.0;
 
-string uSYMBOL;
-int iTIMEFRAME;
 int iACCNUM;
 
 int iTICK=0;
@@ -63,7 +62,13 @@ void vPanic(string uReason) {
     ExpertRemove();
 }
 
-int iIsEA=1;
+/* 
+We could call Python from an indictator so we distinguish this
+*/
+int iIS_EA=1;
+// This assumes that the symbol and period are not changed.
+string uSYMBOL = Symbol();
+int iTIMEFRAME = Period();
 double fDebugLevel=0;
 
 string uSafeString(string uSymbol) {
@@ -73,7 +78,7 @@ string uSafeString(string uSymbol) {
     uSymbol = uStringReplace(uSymbol, ".", "");
     return(uSymbol);
 }
-string uCHART_ID = uChartName(uSafeString(Symbol()), Period(), ChartID(), iIsEA);
+string uCHART_ID = uChartName(uSafeString(uSYMBOL), iTIMEFRAME, ChartID(), iIS_EA);
 
 int OnInit() {
     int iRetval;
@@ -99,8 +104,6 @@ int OnInit() {
         }
         Print("Called iPyInit successfully");
         
-        uSYMBOL=Symbol();
-        iTIMEFRAME=Period();
         iACCNUM=AccountNumber();
 
         uArg="import pika";
@@ -189,42 +192,51 @@ int OnInit() {
 }
 
 string ePyPikaPopQueue(string uChartId) {
-    string uRetval, uMess;
+    string uInput, uOutput, uInfo;
     
-    // There may be sleeps for threads here
+    // FixMe: repeat until empty
     // We may want to loop over zMq4PopQueue to pop many commands
-    uRetval = uPySafeEval(uCHART_ID+".zMq4PopQueue()");
-    if (StringFind(uRetval, "ERROR:", 0) >= 0) {
-        uRetval = "ERROR: zMq4PopQueue failed: "  + uRetval;
-        vWarn("ePyPikaPopQueue: " +uRetval);
-        return(uRetval);
+    uInput = uPySafeEval(uCHART_ID+".zMq4PopQueue()");
+    if (StringFind(uInput, "ERROR:", 0) >= 0) {
+        uInput = "ERROR: zMq4PopQueue failed: "  + uInput;
+        vWarn("ePyPikaPopQueue: " +uInput);
+        return(uInput);
     }
 
-    // the uRetval will be empty if there is nothing to do.
-    if (uRetval == "") {
-        //vTrace("ePyPikaPopQueue: " +uRetval);
+    // the uInput will be empty if there is nothing to do.
+    if (uInput == "") {
+        //vTrace("ePyPikaPopQueue: " +uInput);
     } else {
-        //vTrace("ePyPikaPopQueue: Processing popped exec message: " + uRetval);
-        uMess = uOTPyPikaProcessCmd(uRetval);
-        if (uMess == "void|") {
-            // can be "oid|" return value
-            return("");
-        } else if (StringFind(uMess, "error|", 0) == 0) {
+        //vTrace("ePyPikaPopQueue: Processing popped exec message: " + uInput);
+        uOutput = uOTPyPikaProcessCmd(uInput);
+	if (uOutput == "") {
+            // if the retval is "" we messed up - dont return a value
+	    uOutput = "UNHANDELED: " +uInput;
+            vWarn("ePyPikaPopQueue: " +uOutput);
+            return(uOutput);
+	}
+        if (StringFind(uOutput, "error|", 0) == 0) {
             // can be "error|" return value
-            vWarn("ePyPikaPopQueue: PikaProcessCmd returned: " +uMess);
-            return(uMess);
-        } else if (StringFind(uRetval, "cmd", 0) == 0) {
+	    // This means that there was an error in our uOTPyPikaProcessCmd
+            vWarn("ePyPikaPopQueue: PikaProcessCmd returned: " +uOutput);
+            return(uOutput);
+	    // We can return an error value using the form
+	    // "retval|...|error|error string"
+	}
+	if (StringFind(uInput, "cmd", 0) == 0) {
             // if the command is cmd|  - return a value as a retval|
-            // We want the sMark from uRetval instead of uTime
+            // We want the sMark from uInput instead of uTime
             // but we will do than in Python
-            uMess  = zOTLibSimpleFormatRetval("retval", uCHART_ID, 0, "0", uMess);
-            eReturnOnSpeaker(uCHART_ID, "retval", uMess, uRetval);
-            vDebug("ePyPikaPopQueue: retvaled " +uMess);
+            uInfo = zOTLibSimpleFormatRetval("retval", uCHART_ID, 0, "0", uOutput);
+            eReturnOnSpeaker(uCHART_ID, "retval", uInfo, uInput);
+            vDebug("ePyPikaPopQueue: retvaled " +uInfo);
             return("");
-        } else {
-            // if the command is exec| - dont return a value
-            vDebug("ePyPikaPopQueue: processed " +uMess);
         }
+        if (StringFind(uOutput, "void|", 0) == 0) {
+	    // if the command is void| - dont return a value
+	} else {
+	    vWarn("ePyPikaPopQueue: unrecognized " +uInput + " -> " +uOutput);
+	}
     }
     return("");
 }
@@ -241,7 +253,6 @@ void OnTimer() {
     string uType = "timer";
     string uMark;
 
-    uCHART_ID = uChartName(uSafeString(Symbol()), Period(), ChartID(), iIsEA);
     /* timer events can be called before we are ready */
     if (GlobalVariableCheck("fPyPikaConnectionUsers") == false) {
       return;
@@ -252,11 +263,8 @@ void OnTimer() {
         return;
     }
 
-    // FixMe: could use GetTickCount but we may not be logged in
-    // but maybe TimeCurrent requires us to be logged in?
-    string uTime = IntegerToString(TimeCurrent());
-    
-    uInfo = "0";
+
+    // eHeartBeat first to see if there are any commands
     uRetval = uPySafeEval(uCHART_ID+".eHeartBeat("
                           +IntegerToString(iCALLME_TIMEOUT) +")");
     if (StringFind(uRetval, "ERROR: ", 0) >= 0) {
@@ -270,7 +278,13 @@ void OnTimer() {
         // drop through
     }
     
-    uMess  = zOTLibSimpleFormatTick(uType, uCHART_ID, 0, uTime, uInfo);
+    // FixMe: could use GetTickCount but we may not be logged in
+    // but maybe TimeCurrent requires us to be logged in?
+    // Add microseconds?
+    string uTime = IntegerToString(TimeCurrent());
+    
+    uInfo = "json|" + jOTTimerInformation();
+    uMess  = zOTLibSimpleFormatTimer(uType, uCHART_ID, 0, uTime, uInfo);
     eSendOnSpeaker(uCHART_ID, "timer", uMess);
 }
 
@@ -281,8 +295,7 @@ void OnTick() {
     string uInfo;
     string uMess, uRetval;
 
-    uCHART_ID = uChartName(uSafeString(Symbol()), Period(), ChartID(), iIsEA);
-   fPY_PIKA_CONNECTION_USERS=GlobalVariableGet("fPyPikaConnectionUsers");
+    fPY_PIKA_CONNECTION_USERS=GlobalVariableGet("fPyPikaConnectionUsers");
     if (fPY_PIKA_CONNECTION_USERS < 0.5) {
         vWarn("OnTick: no connection users");
         return;
@@ -304,13 +317,14 @@ void OnTick() {
         bNewBar = true;
         iTICK = 0;
         tNextbartime = tTime;
-        uInfo = sBarInfo();
+        // uInfo = uBarInfo();
+	uInfo = "json|" + jOTBarInformation(uSYMBOL, Period(), 0) ;
         uType = "bar";
         uMess  = zOTLibSimpleFormatBar(uType, uCHART_ID, 0, uTime, uInfo);
     } else {
         bNewBar = false;
         iTICK += 1;
-        uInfo = iTICK;
+	uInfo = "json|" + jOTTickInformation(uSYMBOL, Period()) ;
         uType = "tick";
         uMess  = zOTLibSimpleFormatTick(uType, uCHART_ID, 0, uTime, uInfo);
     }

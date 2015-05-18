@@ -148,6 +148,9 @@ def iMain():
     
     sUsage = __doc__.strip()
     oArgParser = oParseOptions(sUsage)
+    oArgParser.add_argument('lArgs', action="store",
+                            nargs="*",
+                            help="the message to send (required)")
     oOptions = oArgParser.parse_args()
     lArgs = oOptions.lArgs
 
