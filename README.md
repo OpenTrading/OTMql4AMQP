@@ -149,3 +149,76 @@ DLL did not load properly, and you *must* restart if you want to use
 an `OTMql4Py` expert. You should get a pop-up Alert from Mt4 to alert
 you of this.
 
+## PikaCmd2.py
+
+This script can be run from the command line to send commands
+to a OTMql4Pika enabled Metatrader. It will start a command loop to
+listen, send commands, or query the RabbitMQ management interface, based 
+on the cmd2 REPL: see cmd2plus.py in https://github.com/OpenTrading/OTMql4Lib
+
+Type help at the command prompt to get more help.
+
+Call the script with --help to see the script options.
+
+The normal usage is:
+
+sub topics timer.# retval.# - to subscribe to a message queue of events
+sub run                     - to start a thread listening for messages
+pub cmd AccountBalance      - to send a command to OTMql4Pika,
+                              the return will be a retval message on the listener
+
+### chart
+
+Set and query the chart used for messages to and from RabbitMQ:
+  list   - all the charts the listener has heard of,
+           iff you have already started a listener with "sub run"
+  get    - get the default chart to be published or subscribed to.
+  set ID - set the default chart ID to be published or subscribed to.
+  set    - set the default chart to be the last chart the listener has heard of,
+           iff you have already started a listener with "sub run"
+  add    - NOTImplemented
+  remove - NOTImplemented
+
+The chart ID will look something like: oChart_EURGBP_240_93ACD6A2_1
+
+### sub
+Subscribe to messages from RabbitMQ on a given topic:
+  sub topics TOPIC1 ... - subscribes to topics.
+  sub show              - shows topics subscribed to.
+  sub run               - start a thread to listen for messages.
+  sub stop              - start a thread to listen for messages.
+  sub clear             - clear the list of subscribed topics NOTImplemented.
+
+Common topics are: # for all messages, tick.# for ticks,
+timer.# for timer events, retval.# for return values.
+You can choose as specific chart with syntax like:
+    tick.oChart.EURGBP.240.93ACD6A2.#
+
+### pub
+Publish a message via RabbitMQ to a given chart on a OTMql4Py enabled terminal:
+  pub cmd  COMMAND|ARG1|... - publish a Mql command to Mt4,
+      the command should be a single string, with | seperating from arguments.
+  pub eval COMMAND|ARG1|... - publish a Python command to the OTMql4Py,
+      the command should be a single string, with | seperating from arguments.
+
+### rabbit
+If we have pyrabbit installed, and iff the rabbitmq_management plugin
+has been installed in your server, we can introspect some useful
+information if the HTTP interface is enabled. Commands include:
+    get vhost_names
+    get channels
+    get connections
+    get queues
+
+### Messaging Format
+
+The messaging to and from OTMql4Py is still being done with a
+very simple format:
+      sMsgType|sChartId|sIgnored|sMark|sPayload
+where sMsgType is one of: cmd eval (outgoing), timer tick retval (incoming);
+      sChartId is the Mt4 chart sChartId the message is to or from;
+      sMark is a simple floating point timestamp, with milliseconds;
+and   sPayload is command|arg1|arg2... (outgoing) or type|value (incoming),
+      where type is one of: bool int double string json.
+This breaks if the sPayload args or value contain a | -
+we will probably replace this with json or pickled serialization, or kombu.
