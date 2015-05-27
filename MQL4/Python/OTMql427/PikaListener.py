@@ -166,6 +166,7 @@ class PikaMixin(object):
             self.eBindBlockingSpeaker()
 
         assert self.oSpeakerChannel, "eSendOnSpeaker: oSpeakerChannel is null"
+        assert self.oConnection, "eSendOnSpeaker: oConnection is null"
         
         # we will break the sChartId up into dots from the underscores
         # That way the end consumer can look at the feed selectively

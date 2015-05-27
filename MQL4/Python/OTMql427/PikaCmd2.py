@@ -16,6 +16,7 @@ sub run timer# retval.#  - start a thread listening for messages: timer,tick,ret
 pub cmd AccountBalance   - to send a command to OTMql4Pika,
                          the return will be a retval message on the listener
 sub hide timer           - stop seeing timer messages (just see the retval.#)
+orders list              - list your open order tickets
 """
 
 sCHART__doc__ = """
@@ -26,8 +27,6 @@ Set and query the chart used for messages to and from RabbitMQ:
   set ID - set the default chart ID to be published or subscribed to.
   set    - set the default chart to be the last chart the listener has heard of,
            iff you have already started a listener with "sub run"
-  add    - NOTImplemented
-  remove - NOTImplemented
 
 The chart ID will look something like: oChart_EURGBP_240_93ACD6A2_1
 """
@@ -44,7 +43,7 @@ Subscribe to messages from RabbitMQ on a given topic:
   sub pprint ?0|1       - seeing TOPIC messages with pretty-printing,
                           with 0 - off, 1 - on, no argument - current value
 
-Common Rabbit topic patterns are: # for all messages, tick.# for ticks,
+Common RabbitMQ topic patterns are: # for all messages, tick.# for ticks,
 timer.# for timer events, retval.# for return values.
 You can choose as specific chart with syntax like:
     tick.oChart.EURGBP.240.93ACD6A2.#
@@ -53,10 +52,12 @@ You can choose as specific chart with syntax like:
 sPUB__doc__ = """
 Publish a message via RabbitMQ to a given chart on a OTMql4Py enabled terminal:
   pub cmd  COMMAND ARG1 ... - publish a Mql command to Mt4,
-      the command should be a single string, with space seperating from arguments.
+      the command should be a single string, with a space seperating arguments.
   pub eval COMMAND ARG1 ... - publish a Python command to the OTMql4Py,
-      the command should be a single string, with space seperating from arguments.
+      the command should be a single string, with a space seperating arguments.
 
+You wont see the return value unless you have already done a:
+  sub run retval.#
 """
 
 sORD__doc__ = """
@@ -64,12 +65,15 @@ sORD__doc__ = """
   ord info iTicket  - list the current order information about iTicket.
   ord trades        - list the details of current orders.
   ord history       - list the details of closed orders.
-  ord close
+  ord close         - close the order with arguments: iTicket fPrice iSlippage
   ord open
   ord stoploss
   ord trail
   ord exposure      - total exposure of all orders, worst case scenario
   
+"""
+
+sBAC__doc__ = """
 """
 
 lRABBIT_GET_THUNKS = ['vhost_names', 'channels',
@@ -81,24 +85,24 @@ information if the HTTP interface is enabled. Commands include:
     get %s
 """ % (" or ".join(lRABBIT_GET_THUNKS),)
 
-sORD__doc__ = """
-"""
 import sys
 import os
 import json
-from pprint import pprint
+from pprint import pprint, pformat
 import traceback
 import threading
 import time
 import unittest
 from pika import exceptions
 try:
-    import pybacktest
+    import OTrader.OTBackTest as pybacktest
 except ImportError:
+    # sys.stdout.write("pybacktest not installed: pip install pybacktest\n")
     pybacktest = None
 try:
     import pyrabbit
 except ImportError:
+    # sys.stdout.write("pyrabbit not installed: pip install pyrabbit\n")
     pyrabbit = None
 
 from cmd2plus import Cmd, options, make_option, Cmd2TestCase
@@ -142,7 +146,7 @@ def gRetvalToPython(lElts):
     elif sType == 'void':
         gRetval = None
     else:
-        print "WARN: unknown type %s in %r" % (sType, lElts,)
+        sys.stdout.write("WARN: unknown type %s in %r\n" % (sType, lElts,))
         gRetval = None
     return gRetval
 
@@ -217,11 +221,18 @@ class PikaListenerThread(threading.Thread, PikaChart):
         self._running.clear()
         #? self.oListenerChannel.stop_consuming()
         
-    def vPprint(self, bOn=None):
-        if bOn is None:
+    def vPprint(self, sMsgType, sMsg=None):
+        if sMsgType == 'get':
             sys.stdout.write("INFO: bPprint" +repr(self.bPprint) + "\n")
+        elif sMsgType == 'set':
+            self.bPprint = bool(sMsg)
+        elif sMsgType in self.lHide:
+            pass
+        elif self.bPprint and sMsg:
+            # may need more info here - chart and sMark
+            sys.stdout.write("INFO: " +sMsgType +" = " +pformat(sMsg) +"\n")
         else:
-            self.bPprint = bool(bOn)
+            sys.stdout.write("INFO: " +sMsgType +" = " +repr(sMsg) +"\n")
         
     def vHide(self, sMsgType=None):
         if not sMsgType:
@@ -239,7 +250,7 @@ class PikaListenerThread(threading.Thread, PikaChart):
             
     def vPyCallbackOnListener(self, oChannel, oMethod, oProperties, sBody):
         # dir(oProperties) = [app_id', 'cluster_id', 'content_encoding', 'content_type', 'correlation_id', 'decode', 'delivery_mode', 'encode', 'expiration', 'headers', 'message_id', 'priority', 'reply_to', 'timestamp', 'type', 'user_id']
-        sMess = "vPyCallbackOnListener: %r" % (sBody, )
+        
         oChannel.basic_ack(delivery_tag=oMethod.delivery_tag)
         lArgs = lUnFormatMessage(sBody)
         sMsgType = lArgs[0]
@@ -247,30 +258,34 @@ class PikaListenerThread(threading.Thread, PikaChart):
         sIgnore = lArgs[2] # should be a hash on the payload
         sMark = lArgs[3]
         sPayloadType = lArgs[4]
+        gPayload = lArgs[4:] # overwritten below
         try:
             # keep a list of charts that we have seen for "chart list"
             if sChart not in self.lCharts:
                 self.lCharts.append(sChart)
-            sMsgType = sMsgType
+
             if sMsgType == 'retval':
-                assert sPayloadType == 'json', sMsgType +" sPayloadType expected 'json'",
-                self.jLastRetval = G(gRetvalToPython(lArgs))
+                gPayload = gRetvalToPython(lArgs)
+                self.jLastRetval = gPayload
             elif sMsgType == 'tick':
-                assert sPayloadType == 'json', sMsgType +" sPayloadType expected 'json'",
+                assert sPayloadType == 'json', \
+                    sMsgType +" sPayloadType expected 'json'" +"\n" +sBody
                 # can use this to find the current bid and ask
-                self.jLastTick = G(json.loads(lArgs[5]))
+                gPayload =json.loads(lArgs[5])
+                self.jLastTick = gPayload
             elif sMsgType == 'timer':
-                assert sPayloadType == 'json', sMsgType +" sPayloadType expected 'json'",
+                assert sPayloadType == 'json', \
+                    sMsgType +" sPayloadType expected 'json'" +"\n" +sBody
                 # can use this to find if we are currently connected
-                self.gLastTimer = G(json.loads(lArgs[5]))
+                gPayload = json.loads(lArgs[5])
+                self.gLastTimer = gPayload
             else:
-                #? vWarn
-                sMsgType = ""
-                G()
-            self.vPprint(sMsgType, _G)
+                vWarn("vPyCallbackOnListener unrecognized sMsgType: %r" % (sBody, ))
+                return
+                
+            self.vPprint(sMsgType, G(gPayload))
         except Exception, e:
             sys.stderr.write(traceback.format_exc(10) +"\n")
-            
 
 _G = None
 def G(gRetval=None):
@@ -279,7 +294,7 @@ def G(gRetval=None):
     return gRetval
 
 class CmdLineApp(Cmd):
-    multilineCommands = ['orate']
+    multilineCommands = []
     testfiles = ['exampleSession.txt']
 
     oChart = None
@@ -301,11 +316,26 @@ class CmdLineApp(Cmd):
         self.dLastCmd = {}
         self.dLastEval = {}
         self.dLastJson = {}
-
+        self.oBt = None
+        
+    def G(self):
+        global _G
+        return _G
+    
+    def eSendOnSpeaker(self, sChartId, sMsgType, sMsg):
+        if self.oListenerThread is None:
+            self.vWarn("PikaListenerThread not started; you wont see the retval")
+        if not self.oChart:
+            # FixMe: refactor for multiple charts
+            self.oChart = PikaChart(sChartId, **self.oOptions.__dict__)
+        # if sMsgType == 'cmd': warn if not Mt4 connected?
+        return(self.oChart.eSendOnSpeaker(sMsgType, sMsg))
+    
+    ## charts
     def do_chart(self, oArgs, oOpts=None):
         __doc__ = sCHART__doc__
         if not oArgs:
-            sys.stdout.write("Chart operations are required\n" + __doc__)
+            self.poutput("Chart operations are required\n" + __doc__)
             return
         lArgs = oArgs.split()
         if lArgs[0] == 'get':
@@ -328,7 +358,8 @@ class CmdLineApp(Cmd):
                 self.poutput(repr(G(self.oListenerThread.lCharts)))
             return
         self.vError("Unrecognized chart command: " + str(oArgs))
-
+        
+    ## subscribe
     @options([make_option("-c", "--chart",
                             dest="sChartId",
                             help="the target chart to subscribe to"),
@@ -339,7 +370,7 @@ class CmdLineApp(Cmd):
     def do_sub(self, oArgs, oOpts=None):
         __doc__ = sSUB__doc__
         if not oArgs:
-            sys.stdout.write("Topics to subscribe to (optionally including # or *) are required\n" + __doc__)
+            self.poutput("Topics to subscribe to (optionally including # or *) are required\n" + __doc__)
             return
         if oOpts and oOpts.sChartId:
             sChartId = oOpts.sChartId
@@ -398,7 +429,7 @@ class CmdLineApp(Cmd):
                 self.oListenerThread.vHide()
             else:
                 for sElt in lArgs[1:]:
-                self.oListenerThread.vHide(sElt)
+                    self.oListenerThread.vHide(sElt)
             return
         
         if lArgs[0] == 'show':
@@ -417,14 +448,16 @@ class CmdLineApp(Cmd):
                 self.vWarn("PikaListenerThread not already started")
                 return
             if len(lArgs) == 1:
-                self.oListenerThread.vpPrint()
+                self.oListenerThread.vPprint('get')
             else:
-                self.oListenerThread.vShow(bool(lArgs[1]))
+                self.oListenerThread.vPprint('set', bool(lArgs[1]))
             return
+        
         self.vError("Unrecognized subscribe command: " + str(oArgs))
         
     do_subscribe = do_sub
     
+    ## publish
     @options([make_option("-c", "--chart",
                             dest="sChartId",
                             help="the target chart to publish to (or: ANY ALL NONE)"),
@@ -435,7 +468,7 @@ class CmdLineApp(Cmd):
     def do_pub(self, oArgs, oOpts=None):
         __doc__ = sPUB__doc__
         if not oArgs:
-            sys.stdout.write("Commands to publish (and arguments) are required\n" + __doc__)
+            self.poutput("Commands to publish (and arguments) are required\n" + __doc__)
             return
         if oOpts and oOpts.sChartId:
             sChartId = oOpts.sChartId
@@ -444,9 +477,6 @@ class CmdLineApp(Cmd):
         if self.oListenerThread is None:
             self.vError("PikaListenerThread not started; use 'sub run ...'")
             return
-        if not self.oChart:
-            # FixMe: refactor for multiple charts
-            self.oChart = PikaChart(sChartId, **self.oOptions.__dict__)
 
         lArgs = oArgs.split()
         if lArgs[0] == 'cmd':
@@ -454,7 +484,7 @@ class CmdLineApp(Cmd):
             assert len(lArgs) > 1, "ERROR: pub cmd COMMAND ARG1..."
             sMsg = sFormatMessage(sMsgType, sChartId, *lArgs[1:])
             self.vInfo("Publishing: " +sMsg)
-            self.oChart.eSendOnSpeaker(sMsgType, sMsg)
+            self.eSendOnSpeaker(sChartId, sMsgType, sMsg)
             self.dLastCmd[sChartId] = G(sMsg)
             return
         
@@ -466,7 +496,7 @@ class CmdLineApp(Cmd):
                 sInfo += '(' +str(','.join(lArgs[2:])) +')'
             sMsg = sFormatMessage(sMsgType, sChartId, sInfo,)
             self.vInfo("Publishing: " +sMsg)
-            self.oChart.eSendOnSpeaker(sMsgType, sMsg)
+            self.eSendOnSpeaker(sChartId, sMsgType, sMsg)
             self.dLastEval[sChartId] = G(sMsg)
             return
         
@@ -477,13 +507,14 @@ class CmdLineApp(Cmd):
             sInfo = json.dumps(str(' '.join(lArgs[1:])))
             sMsg = sFormatMessage(sMsgType, sChartId, sInfo,)
             self.vInfo("Publishing: " +sMsg)
-            self.oChart.eSendOnSpeaker(sMsgType, sMsg)
+            self.eSendOnSpeaker(sChartId, sMsgType, sMsg)
             self.dLastJson[sChartId] = G(sMsg)
             return
         self.vError("Unrecognized publish command: " + str(oArgs))
         
     do_publish = do_pub
     
+    ## orders
     @options([make_option("-c", "--chart",
                             dest="sChartId",
                             help="the target chart to order with (or: ANY ALL NONE)"),
@@ -494,7 +525,7 @@ class CmdLineApp(Cmd):
     def do_ord(self, oArgs, oOpts=None):
         __doc__ = sORD__doc__
         if not oArgs:
-            sys.stdout.write("Commands to order (and arguments) are required\n" + __doc__)
+            self.poutput("Commands to order (and arguments) are required\n" + __doc__)
             return
         if self.oListenerThread is None:
             self.vError("PikaListenerThread not started; use 'sub run ...'")
@@ -504,9 +535,6 @@ class CmdLineApp(Cmd):
             sChartId = oOpts.sChartId
         else:
             sChartId = self.sDefaultChart
-        if not self.oChart:
-            # FixMe: refactor for multiple charts
-            self.oChart = PikaChart(sChartId, **self.oOptions.__dict__)
 
         lArgs = oArgs.split()
         if lArgs[0] == 'list' or lArgs[0] == 'tickets':
@@ -515,7 +543,7 @@ class CmdLineApp(Cmd):
             sInfo='jOTOrdersTickets'
             sMsg = sFormatMessage(sMsgType, sChartId, sInfo)
             self.vDebug("Ordering: " +sMsg)
-            self.oChart.eSendOnSpeaker(sMsgType, sMsg)
+            self.eSendOnSpeaker(sChartId, sMsgType, sMsg)
             # FixMe: Tag with sMark
             self.dLastCmd[sChartId] = G(sMsg)
             return
@@ -526,7 +554,7 @@ class CmdLineApp(Cmd):
             sInfo='jOTOrdersTrades'
             sMsg = sFormatMessage(sMsgType, sChartId, sInfo)
             self.vDebug("Ordering: " +sMsg)
-            self.oChart.eSendOnSpeaker(sMsgType, sMsg)
+            self.eSendOnSpeaker(sChartId, sMsgType, sMsg)
             # FixMe: Tag with sMark
             self.dLastCmd[sChartId] = G(sMsg)
             return
@@ -537,7 +565,7 @@ class CmdLineApp(Cmd):
             sInfo='jOTOrdersHistory'
             sMsg = sFormatMessage(sMsgType, sChartId, sInfo)
             self.vDebug("Ordering: " +sMsg)
-            self.oChart.eSendOnSpeaker(sMsgType, sMsg)
+            self.eSendOnSpeaker(sChartId, sMsgType, sMsg)
             # FixMe: Tag with sMark
             self.dLastCmd[sChartId] = G(sMsg)
             return
@@ -549,7 +577,7 @@ class CmdLineApp(Cmd):
             sArg1 = str(lArgs[1])
             sMsg = sFormatMessage(sMsgType, sChartId, sCmd, sArg1)
             self.vDebug("Ordering: " +sMsg)
-            self.oChart.eSendOnSpeaker(sMsgType, sMsg)
+            self.eSendOnSpeaker(sChartId, sMsgType, sMsg)
             # FixMe: Tag with sMark
             self.dLastCmd[sChartId] = G(sMsg)
             return
@@ -560,15 +588,54 @@ class CmdLineApp(Cmd):
             sArg1 = str(0)
             sMsg = sFormatMessage(sMsgType, sChartId, sCmd, sArg1)
             self.vDebug("Ordering: " +sMsg)
-            self.oChart.eSendOnSpeaker(sMsgType, sMsg)
+            self.eSendOnSpeaker(sChartId, sMsgType, sMsg)
             # FixMe: Tag with sMark
             self.dLastCmd[sChartId] = G(sMsg)
             return
-        # iOTOrderCloseFull(int iTicket, double fPrice, int iSlippage, color cColor=CLR_NONE)
+        
+        if lArgs[0] == 'close':
+            sMsgType = 'cmd' # Mt4 command
+            sCmd='iOTOrderCloseFull'
+            assert len(lArgs) == 4, "ERROR: order close iTicket fPrice iSlippage"
+            sArg1 = lArgs[1]
+            sArg2 = lArgs[2]
+            sArg3 = lArgs[3]
+            sMsg = sFormatMessage(sMsgType, sChartId, sCmd, sArg1, sArg2, sArg3)
+            self.vDebug("Ordering: " +sMsg)
+            self.eSendOnSpeaker(sChartId, sMsgType, sMsg)
+            # FixMe: Tag with sMark
+            self.dLastCmd[sChartId] = G(sMsg)
+            return
+        # (int iTicket, double fPrice, int iSlippage, color cColor=CLR_NONE)
         self.vError("Unrecognized order command: " + str(oArgs))
         
     do_order = do_ord
+    do_orders = do_ord
+    
+    # backtest
+    @options([make_option("-b", "--backtester",
+                            dest="sBackTester",
+                            help="the backtest package (one of: pybacktest)"),
+    ],
+               arg_desc="command",
+               usage=sBAC__doc__
+             )
+    def do_back(self, oArgs, oOpts=None):
+        __doc__ = sBAC__doc__
+        if not pybacktest:
+            self.poutput("Install pybacktest from git://github.com/ematvey/pybacktest/")
+            return
+        if not oArgs:
+            self.poutput("Commands to backtest (and arguments) are required\n" + __doc__)
+            return
+        # unfinished
+        from OTrader.BacktestCmd import vDoBacktestCmd
+        vDoBacktestCmd(self, oArgs, oOpts=None)
         
+    do_bac = do_back
+    do_backtest = do_back
+    
+    ## rabbit
     @options([make_option("-a", "--address",
                             dest="sHttpAddress",
                             default="127.0.0.1",
@@ -581,12 +648,11 @@ class CmdLineApp(Cmd):
     )
     def do_rabbit(self, oArgs, oOpts=None):
         __doc__ = sRABBIT__doc__
-
         if not pyrabbit:
-            sys.stdout.write("pyrabbit not installed: pip install pyrabbit\n")
+            self.poutput("Install pyrabbit from http://pypi.python.org/pypi/pyrabbit")
             return
         if not oArgs:
-            sys.stdout.write("Command required: get\n" + __doc__)
+            self.poutput("Command required: get\n" + __doc__)
             return
 
         if self.oRabbit is None:
@@ -610,7 +676,7 @@ class CmdLineApp(Cmd):
                 self.poutput(repr(G(lRetval)))
             else:
                 self.vError("Choose one of: get " +",".join(lRABBIT_GET_THUNKS))
-                return
+            return
         self.vError("Unrecognized rabbit command: " + str(oArgs))
 
     def postloop(self):
@@ -629,10 +695,13 @@ class CmdLineApp(Cmd):
 
     def vError(self, sMsg):
         self.poutput("ERROR: " +sMsg)
+        
     def vWarn(self, sMsg):
         self.poutput("WARN: " +sMsg)
+        
     def vInfo(self, sMsg):
         self.pfeedback("INFO: " +sMsg)
+        
     def vDebug(self, sMsg):
         self.pfeedback("DEBUG: " +sMsg)
 
@@ -656,9 +725,13 @@ def iMain():
     oArgParser.add_argument('-t', '--test',
                             dest='bUnittests', action='store_true', default=False,
                             help='Run unit test suite')
+    oArgParser.add_argument('-u', '--use_talib',
+                            dest='bUseTalib', action='store_true', default=False,
+                            help='Use Ta-lib for chart operations')
     oArgParser.add_argument("-c", "--chart",
                             dest="sDefaultChartId", action='store_true', default='oANY_0_FFFF_0',
                             help="the default target chart to sub or pub")
+    #? matplotlib_use?
     oArgParser.add_argument('lArgs', action="store",
                             nargs="*",
                             help="command line arguments (optional)")
@@ -675,7 +748,13 @@ def iMain():
     oApp = None
     try:
         oApp = CmdLineApp(oOptions, lArgs)
-        oApp.cmdloop()
+        if lArgs:
+            initial_command = ' '.join(lArgs)
+            oApp.onecmd_plus_hooks(initial_command + '\n')
+            return 0
+        else:
+            oApp._cmdloop()
+            return 0
     except KeyboardInterrupt:
         pass
     except Exception, e:

@@ -11,10 +11,11 @@ Call the script with --help to see the script options.
 
 The normal usage is:
 
-sub topics timer.# retval.# - to subscribe to a message queue of events
-sub run                     - to start a thread listening for messages
-pub cmd AccountBalance      - to send a command to OTMql4Pika,
-                              the return will be a retval message on the listener
+sub run timer# retval.#  - start a thread listening for messages: timer,tick,retval
+pub cmd AccountBalance   - to send a command to OTMql4Pika,
+                         the return will be a retval message on the listener
+sub hide timer           - stop seeing timer messages (just see the retval.#)
+orders list              - list your open order tickets
 
 ### chart
 
@@ -25,30 +26,42 @@ Set and query the chart used for messages to and from RabbitMQ:
   set ID - set the default chart ID to be published or subscribed to.
   set    - set the default chart to be the last chart the listener has heard of,
            iff you have already started a listener with "sub run"
-  add    - NOTImplemented
-  remove - NOTImplemented
 
 The chart ID will look something like: oChart_EURGBP_240_93ACD6A2_1
 
 ### sub
-Subscribe to messages from RabbitMQ on a given topic:
-  sub topics TOPIC1 ... - subscribes to topics.
-  sub show              - shows topics subscribed to.
-  sub run               - start a thread to listen for messages.
-  sub stop              - start a thread to listen for messages.
-  sub clear             - clear the list of subscribed topics NOTImplemented.
+  sub topics            - shows topics subscribed to.
+  sub run TOPIC1 ...    - start a thread to listen for messages,
+                          TOPIC is one or more Rabbit topic patterns.
+  sub stop              - stop a thread listening for messages.
+  sub hide TOPIC        - stop seeing TOPIC messages (e.g. tick - not a pattern)
+  sub show              - list the message topics that are being hidden
+  sub show TOPIC        - start seeing TOPIC messages (e.g. tick - not a pattern)
+  sub pprint ?0|1       - seeing TOPIC messages with pretty-printing,
+                          with 0 - off, 1 - on, no argument - current value
 
-Common topics are: # for all messages, tick.# for ticks,
+Common RabbitMQ topic patterns are: # for all messages, tick.# for ticks,
 timer.# for timer events, retval.# for return values.
 You can choose as specific chart with syntax like:
     tick.oChart.EURGBP.240.93ACD6A2.#
 
 ### pub
 Publish a message via RabbitMQ to a given chart on a OTMql4Py enabled terminal:
-  pub cmd  COMMAND|ARG1|... - publish a Mql command to Mt4,
-      the command should be a single string, with | seperating from arguments.
-  pub eval COMMAND|ARG1|... - publish a Python command to the OTMql4Py,
-      the command should be a single string, with | seperating from arguments.
+  pub cmd  COMMAND ARG1 ... - publish a Mql command to Mt4,
+      the command should be a single string, with a space seperating arguments.
+  pub eval COMMAND ARG1 ... - publish a Python command to the OTMql4Py,
+      the command should be a single string, with a space seperating arguments.
+
+### orders
+  ord list          - list the ticket numbers of current orders.
+  ord info iTicket  - list the current order information about iTicket.
+  ord trades        - list the details of current orders.
+  ord history       - list the details of closed orders.
+  ord close         - close the order with arguments: iTicket fPrice iSlippage
+  ord open
+  ord stoploss
+  ord trail
+  ord exposure      - total exposure of all orders, worst case scenario
 
 ### rabbit
 If we have pyrabbit installed, and iff the rabbitmq_management plugin
