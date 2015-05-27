@@ -15,15 +15,13 @@ Give  --help to see the options.
 oCONNECTION = None
 
 import sys
-import json
 import logging
 import time
-import threading
 
 import pika
 
 if True:
-    ePikaCallme = "PikaCallme disabled "
+    eCALLME_IMPORT_ERROR = "PikaCallme disabled "
     PikaCallme = None
 else:
     # The callme server is optional and may not be installed.
@@ -32,15 +30,15 @@ else:
     try:
         import PikaCallme
         from Mt4SafeEval import sPySafeEval
-        ePikaCallme = ""
+        eCALLME_IMPORT_ERROR = ""
     except ImportError, e:
-        ePikaCallme = "Failed to import PikaCallme: " + str(e)
+        eCALLME_IMPORT_ERROR = "Failed to import PikaCallme: " + str(e)
         PikaCallme = None
 
 from OTLibLog import *
 oLOG = logging
 
-lKNOWN_TOPICS=['tick', 'timer', 'retval', 'bar', 'cmd', 'eval'] # 'exec'
+lKNOWN_TOPICS = ['tick', 'timer', 'retval', 'bar', 'cmd', 'eval', 'json'] # 'exec'
 
 class PikaMixin(object):
 
@@ -130,7 +128,7 @@ class PikaMixin(object):
                 oChannel.queue_bind(exchange=self.sExchangeName,
                                     queue=sQueueName,
                                     routing_key=sBindingKey,
-                )
+                                    )
             time.sleep(0.1)
             self.oListenerChannel = oChannel
             
@@ -201,9 +199,9 @@ class PikaMixin(object):
         print "INFO: " +sMess
         oChannel.basic_ack(delivery_tag=oMethod.delivery_tag)
         
-    def vPyRecvOnListener(self, sQueueName,  lBindingKeys):
+    def vPyRecvOnListener(self, sQueueName, lBindingKeys):
         if self.oListenerChannel is None:
-            self.eBindBlockingListener(sQueueName,  lBindingKeys)
+            self.eBindBlockingListener(sQueueName, lBindingKeys)
         assert self.oListenerChannel, "vPyRecvOnListener: oListenerChannel is null"
         #FixMe: does this block? no
         # http://www.rabbitmq.com/amqp-0-9-1-reference.html#basic.consume
@@ -212,7 +210,7 @@ class PikaMixin(object):
         self.oListenerChannel.basic_consume(self.vPyCallbackOnListener,
                                             queue=self.oListenerQueueName,
                                             # exclusive=True,
-        )
+                                            )
         
     def bCloseConnectionSockets(self, oOptions=None):
         global oCONNECTION
@@ -275,7 +273,7 @@ def iMain():
         
         oChart.eBindBlockingListener('listen-for-ticks', lArgs)
 
-        i=0
+        i = 0
         while i < 5:
             i += 1
             if oOptions.iVerbose >= 4:
@@ -287,7 +285,7 @@ def iMain():
             except  pika.exceptions.ConnectionClosed:
                 print "WARN: ConnectionClosed vPyRecvOnListener " +str(i)
                 continue
-        i=0
+        i = 0
         while True:
             i += 1
             try:

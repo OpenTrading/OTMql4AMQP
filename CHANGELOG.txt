@@ -1,3 +1,9 @@
+commit b3f56dd04c0fa1e6854f4399d9cb34781dc91d28
+Date:   Tue May 19 20:54:30 2015 +0300
+
+    Added MQL4/Python/OTMql427/PikaCmd2.py to communicate withan OTMql4Py
+    enabled metatrader. It's a Cmd2 based REPL with some basic commands.
+
 commit 19756b9b2fd5d6c49cd5aadf417c2e8e11e962cd
 Date:   Mon May 18 15:41:08 2015 +0300
 
