@@ -17,7 +17,7 @@ import pika
 
 oLOG = logging
 
-from Mq4Chart import Mq4Chart
+from Mq4Chart import Mq4Chart, oFindChartByName, lFindAllCharts
 from PikaListener import PikaMixin
 from Mt4SafeEval import sPySafeEval
 
@@ -34,18 +34,6 @@ else:
     except ImportError, e:
         ePikaCallme = "Failed to import PikaCallme: " + str(e)
         PikaCallme = None
-
-# FixMe:
-# The messaging to and from OTMql4Py is still being done with a
-# very simple format:
-#       sMsgType|sChartId|sIgnored|sMark|sPayload
-# where sMsgType is one of: cmd eval (outgoing), timer tick retval (incoming);
-#       sChartId is the Mt4 chart sChartId the message is to or from;
-#       sMark is a simple floating point timestamp, with milliseconds;
-# and   sPayload is command|arg1|arg2... (outgoing) or type|value (incoming),
-#       where type is one of: bool int double string json.
-# This breaks if the sPayload args or value contain a | 
-# We will probably replace this with json or pickled serialization, or kombu.
 
 class PikaChart(Mq4Chart, PikaMixin):
 
@@ -92,10 +80,71 @@ class PikaChart(Mq4Chart, PikaMixin):
             
         return ""
     
+    def vPikaDispatchOnListener(self, sBody, oProperties=None):
+        #? do we need the oProperties for content-type?
+        # 'content_encoding', 'content_type', 'correlation_id', 'decode', 'delivery_mode', 'encode', 'expiration', 'headers', 'message_id', 'priority', 'reply_to', 'timestamp', 'type', 'user_id'
+        
+        lArgs = self.lUnFormatMessage(sBody)
+        sMsgType = lArgs[0]
+        sChart = lArgs[1]
+        sIgnore = lArgs[2] # should be a hash on the payload
+        sMark = lArgs[3]
+        sPayloadType = lArgs[4]
+        gPayload = lArgs[4:] # overwritten below
+        
+        if sMsgType == 'cmd':
+            # FixMe; dispatch to the right chart
+            lChartInstances = lFindAllCharts()
+            if not lChartInstances:
+                # this should never happen
+                sys.stdout.write("ERROR: vPikaDispatchOnListener no charts\n")
+                self.eMq4PushQueue(sBody)
+                return
+            if sChart.find('ANY') >= 0:
+                #? use self?
+                oElt =lChartInstances[0]
+                oElt.eMq4PushQueue(sBody)
+                return
+            if sChart.find('ALL') >= 0:
+                for oElt in lChartObjects:
+                    oElt.eMq4PushQueue(sBody)
+                return
+
+            l = oFindChartByName(sChart)
+            if l:
+                if len(l) != 1:
+                    sys.stdout.write("ERROR: vPikaDispatchOnListener too many charts named " +sChart +"\n")
+                l[0].eMq4PushQueue(sBody)
+                return
+
+            sys.stdout.write("WARN: vPikaDispatchOnListener unrecognized sBody " +sBody +"\n")
+            sys.stdout.flush()
+        
+            self.eMq4PushQueue(sBody)
+            return
+        
+        #? assume eval is on any chart?
+        if sMsgType == 'eval':
+            # unused
+            lRetval = ['retval']
+            lRetval += lArgs[1:3]
+            sCmd = lArgs[4]
+            if len(lArgs) > 5:
+                sCmd += '(' +lArgs[5] +')'
+            sRetval = sPySafeEval(sCmd)
+            if sRetval.find('ERROR:') >= 0:
+                lRetval += ['error', sRetval]
+            else:
+                lRetval += ['string', sRetval]
+            sRetval = '|'.join(lRetval)
+            # FixMe; dispatch to the right chart
+            self.eReturnOnSpeaker('retval', sRetval, sBody)
+            return
+        
     def vPikaCallbackOnListener(self, oChannel, oMethod, oProperties, sBody):
         assert sBody, "vPikaCallbackOnListener: no sBody received"
-        sMess = "vPikaCallbackOnListener Listened: %r" % sBody
         oChannel.basic_ack(delivery_tag=oMethod.delivery_tag)
+        sMess = "vPikaCallbackOnListener Listened: %r" % sBody
         sys.stdout.write("INFO: " +sMess +"\n")
         sys.stdout.flush()
         # we will assume that the sBody
@@ -104,29 +153,7 @@ class PikaChart(Mq4Chart, PikaMixin):
         # FixMe: refactor for multiple charts:
         # we must push to the right chart
         try:
-            lArgs = sBody.split('|')
-            if lArgs[0] == 'cmd':
-                self.eMq4PushQueue(sBody)
-                return
-            if lArgs[0] == 'eval':
-                lRetval = ['retval']
-                lRetval += lArgs[1:3]
-                sCmd = lArgs[4]
-                if len(lArgs) > 5:
-                    sCmd += '(' +lArgs[5] +')'
-                sRetval = sPySafeEval(sCmd)
-                if sRetval.find('ERROR:') >= 0:
-                    lRetval += ['error', sRetval]
-                else:
-                    lRetval += ['string', sRetval]
-                sReturn = '|'.join(lRetval)
-                self.eReturnOnSpeaker('retval', sReturn, sBody)
-                return
-            if lArgs[0] == 'json':
-                # FixMe: but why?
-                sys.stdout.write("WARN: not yet json: " +sBody +"\n")
-                sys.stdout.flush()
-                return
+            self.vPikaDispatchOnListener(sBody, oProperties)
         except Exception, e:
             sys.stdout.write("ERROR: " +str(e) +"\n" + \
                              traceback.format_exc(10) +"\n")

@@ -34,6 +34,9 @@ def oParseOptions(sUsage):
     oArgParser.add_argument("-e", "--exchange", action="store",
                             dest="sExchangeName", default="Mt4",
                             help="sExchangeName for the connection (default Mt4)")
+    oArgParser.add_argument("-P", "--mt4dir", action="store",
+                            dest="sMt4Dir", default="",
+                            help="directory for the installed Metatrader")
     oArgParser.add_argument("-i", "--virtual", action="store",
                             dest="sVirtualHost", default="/",
                             help="the VirtualHost for the connection (default /)")

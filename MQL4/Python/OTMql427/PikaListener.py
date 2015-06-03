@@ -219,36 +219,39 @@ class PikaMixin(object):
         # might be called during a broken __init__
         if not hasattr(self, 'oListenerChannel'): return False
 
-        if self.oListenerChannel:
-            # we dont want to purge the queue because we are just a listener
-            # blocking_connection.py", line 89, in ready...    self.poll_timeout)
-            # throws a select.error: (10004, 'Windows Error 0x2714')
-            # self.oListenerChannel.queue_purge(queue=self.oListenerQueueName,
-            #                                  nowait=True)
-            # TypeError: queue_delete() got an unexpected keyword argument 'callback'
-            self.oListenerChannel.queue_delete(queue=self.oListenerQueueName,
-                                               nowait=True)
-      
-        if self.oListenerThread:
-            self.oListenerThread.stop()
-            self.oListenerThread.join()
-            self.oListenerThread = None
-        elif self.oListenerServer:
-            self.oListenerServer.disconnect()
-            self.oListenerServer = None
+        try:
+            if self.oListenerChannel:
+                # we dont want to purge the queue because we are just a listener
+                # blocking_connection.py", line 89, in ready...    self.poll_timeout)
+                # throws a select.error: (10004, 'Windows Error 0x2714')
+                # self.oListenerChannel.queue_purge(queue=self.oListenerQueueName,
+                #                                  nowait=True)
+                # TypeError: queue_delete() got an unexpected keyword argument 'callback'
+                self.oListenerChannel.queue_delete(queue=self.oListenerQueueName,
+                                                   nowait=True)
 
-        if self.iDebugLevel >= 1:
-            print "DEBUG: destroying the connection"
-        sys.stdout.flush()
-        sys.stderr.flush()
-        if self.oConnection:
-            self.oConnection.close()
-        if self.oListenerChannel:
-            self.oListenerChannel = None
-        if self.oSpeakerChannel:
-            self.oSpeakerChannel = None
-        oCONNECTION = None
+            if self.oListenerThread:
+                self.oListenerThread.stop()
+                self.oListenerThread.join()
+                self.oListenerThread = None
+            elif self.oListenerServer:
+                self.oListenerServer.disconnect()
+                self.oListenerServer = None
 
+            if self.iDebugLevel >= 1:
+                print "DEBUG: destroying the connection"
+            sys.stdout.flush()
+            sys.stderr.flush()
+            if self.oConnection:
+                self.oConnection.close()
+            if self.oListenerChannel:
+                self.oListenerChannel = None
+            if self.oSpeakerChannel:
+                self.oSpeakerChannel = None
+            oCONNECTION = None
+        except (KeyboardInterrupt, pika.exceptions.ConsumerCancelled,):
+            pass
+        
         time.sleep(0.1)
         return True
 
@@ -306,7 +309,7 @@ def iMain():
             print "DEBUG: Waiting for message queues to flush..."
             oChart.bCloseConnectionSockets(oOptions)
             time.sleep(1.0)
-    except (KeyboardInterrupt, pika.exceptions.ConsumerCancelled,):
+    except:
         pass
 
 if __name__ == '__main__':

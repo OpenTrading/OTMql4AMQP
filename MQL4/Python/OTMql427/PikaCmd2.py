@@ -36,13 +36,14 @@ Subscribe to messages from RabbitMQ on a given topic:
   sub topics            - shows topics subscribed to.
   sub run TOPIC1 ...    - start a thread to listen for messages,
                           TOPIC is one or more Rabbit topic patterns.
-  sub stop              - stop a thread listening for messages.
   sub hide TOPIC        - stop seeing TOPIC messages (e.g. tick - not a pattern)
   sub show              - list the message topics that are being hidden
   sub show TOPIC        - start seeing TOPIC messages (e.g. tick - not a pattern)
   sub pprint ?0|1       - seeing TOPIC messages with pretty-printing,
                           with 0 - off, 1 - on, no argument - current value
-
+  sub thread info       - info on the thread listening for messages.
+  sub thread stop       - stop a thread listening for messages.
+  
 Common RabbitMQ topic patterns are: # for all messages, tick.# for ticks,
 timer.# for timer events, retval.# for return values.
 You can choose as specific chart with syntax like:
@@ -60,20 +61,19 @@ You wont see the return value unless you have already done a:
   sub run retval.#
 """
 
+# should these all be of chart ANY
 sORD__doc__ = """
   ord list          - list the ticket numbers of current orders.
   ord info iTicket  - list the current order information about iTicket.
   ord trades        - list the details of current orders.
   ord history       - list the details of closed orders.
   ord close         - close the order with arguments: iTicket fPrice iSlippage
-  ord open
+  ord buy|sell sSymbol fVolume [fPrice iSlippage] - send an order to open;
+                    Without the fPrice and iSlippage it will be a market order.
   ord stoploss
   ord trail
   ord exposure      - total exposure of all orders, worst case scenario
   
-"""
-
-sBAC__doc__ = """
 """
 
 lRABBIT_GET_THUNKS = ['vhost_names', 'channels',
@@ -83,7 +83,7 @@ If we have pyrabbit installed, and iff the rabbitmq_management plugin
 has been installed in your server, we can introspect some useful
 information if the HTTP interface is enabled. Commands include:
     get %s
-""" % (" or ".join(lRABBIT_GET_THUNKS),)
+""" % ("|".join(lRABBIT_GET_THUNKS),)
 
 import sys
 import os
@@ -94,11 +94,19 @@ import threading
 import time
 import unittest
 from pika import exceptions
+
+pybacktest = None
+sBAC__doc__ = ""
 try:
+    import OTrader
+    sDir = os.path.dirname(OTrader.__file__)
+    if sDir not in sys.path:
+        sys.path.insert(0, sDir)
+    del sDir
     import OTrader.OTBackTest as pybacktest
-except ImportError:
-    # sys.stdout.write("pybacktest not installed: pip install pybacktest\n")
-    pybacktest = None
+    from OTrader.BacktestCmd import sBAC__doc__
+except ImportError, e:
+    sys.stdout.write("pybacktest not installed: " +str(e) +"\n" )
 try:
     import pyrabbit
 except ImportError:
@@ -211,11 +219,20 @@ class PikaListenerThread(threading.Thread, PikaChart):
         self._running.set()
 
     def run(self):
-        try:
-            while self._running.is_set() and len(self.oListenerChannel._consumers):
+        while self._running.is_set() and len(self.oListenerChannel._consumers):
+            try:
                 self.oListenerChannel.connection.process_data_events()
-        except (exceptions.ConsumerCancelled, KeyboardInterrupt,):
-            pass
+            except exceptions.ConnectionClosed, e:
+                #? are these spurious
+                #? should we look at self.oListenerChannel.connection
+                sys.stdout.write("DEBUG: ignoring exception on listener " +str(e) +"\n")
+            except (exceptions.ConsumerCancelled, KeyboardInterrupt,), e:
+                sys.stdout.write("DEBUG: stopping listener thread " +str(e) +"\n")
+                self.stop()
+            except Exception, e:
+                sys.stdout.write("WARN: unhandled error - stopping listener thread " +str(e) +"\n")
+                #? raise
+                self.stop()
 
     def stop(self):
         self._running.clear()
@@ -236,14 +253,14 @@ class PikaListenerThread(threading.Thread, PikaChart):
         
     def vHide(self, sMsgType=None):
         if not sMsgType:
-            sys.stdout.write("INFO: hiding" +repr(self.lHide) + "\n")
+            sys.stdout.write("INFO: hiding " +repr(self.lHide) + "\n")
             return
         if sMsgType not in self.lHide:
             self.lHide.append(sMsgType)
             
     def vShow(self, sMsgType=None):
         if not sMsgType:
-            sys.stdout.write("INFO: hiding" +repr(self.lHide) + "\n")
+            sys.stdout.write("INFO: hiding " +repr(self.lHide) + "\n")
             return
         if sMsgType in self.lHide:
             self.lHide.remove(sMsgType)
@@ -259,7 +276,10 @@ class PikaListenerThread(threading.Thread, PikaChart):
         sMark = lArgs[3]
         sPayloadType = lArgs[4]
         gPayload = lArgs[4:] # overwritten below
+        
         try:
+            # sys.stdout.write("INFO: sChart: " +repr(sChart) +'\n')
+
             # keep a list of charts that we have seen for "chart list"
             if sChart not in self.lCharts:
                 self.lCharts.append(sChart)
@@ -280,7 +300,7 @@ class PikaListenerThread(threading.Thread, PikaChart):
                 gPayload = json.loads(lArgs[5])
                 self.gLastTimer = gPayload
             else:
-                vWarn("vPyCallbackOnListener unrecognized sMsgType: %r" % (sBody, ))
+                sys.stdout.write("WARN: vPyCallbackOnListener unrecognized sMsgType: %r\n" % (sBody, ))
                 return
                 
             self.vPprint(sMsgType, G(gPayload))
@@ -332,6 +352,10 @@ class CmdLineApp(Cmd):
         return(self.oChart.eSendOnSpeaker(sMsgType, sMsg))
     
     ## charts
+    @options([],
+             arg_desc="command",
+             usage=sCHART__doc__,
+    )
     def do_chart(self, oArgs, oOpts=None):
         __doc__ = sCHART__doc__
         if not oArgs:
@@ -357,7 +381,7 @@ class CmdLineApp(Cmd):
             else:
                 self.poutput(repr(G(self.oListenerThread.lCharts)))
             return
-        self.vError("Unrecognized chart command: " + str(oArgs))
+        self.vError("Unrecognized chart command: " + str(oArgs) +'\n' +__doc__)
         
     ## subscribe
     @options([make_option("-c", "--chart",
@@ -369,15 +393,13 @@ class CmdLineApp(Cmd):
     )
     def do_sub(self, oArgs, oOpts=None):
         __doc__ = sSUB__doc__
-        if not oArgs:
-            self.poutput("Topics to subscribe to (optionally including # or *) are required\n" + __doc__)
-            return
+        lArgs = oArgs.split()
+        
         if oOpts and oOpts.sChartId:
             sChartId = oOpts.sChartId
         else:
             sChartId = self.sDefaultChart
 
-        lArgs = oArgs.split()
         if lArgs[0] == 'topics':
             # what if self.oListenerThread is not None:
             assert len(lArgs) > 1, "ERROR: sub topics TOPIC1..."
@@ -402,7 +424,7 @@ class CmdLineApp(Cmd):
             if self.oListenerThread is None:
                 if len(lArgs) > 1:
                     self.lTopics = lArgs[1:]
-                self.vInfo("Starting PikaListenerThread listening to to: " + repr(G(self.lTopics)))
+                self.vInfo("Starting PikaListenerThread listening to: " + repr(G(self.lTopics)))
                 self.oListenerThread = PikaListenerThread(sChartId, self.lTopics,
                                                           **self.oOptions.__dict__)
                 self.oListenerThread.start()
@@ -411,14 +433,38 @@ class CmdLineApp(Cmd):
 
             return
 
-        if lArgs[0] == 'stop':
-            if not self.oListenerThread:
-                self.vWarn("PikaListenerThread not already started")
+        if lArgs[0] == 'thread':
+            _lCmds = ['info', 'stop', 'enumerate']
+            assert len(lArgs) > 1, "ERROR: sub thread " +str(lCmds)
+            assert lArgs[1] in _lCmds, "ERROR: " +lArgs[0] +" " +str(_lCmds)
+            sSubCmd = lArgs[1]
+            
+            oT = self.oListenerThread
+            if sSubCmd == 'enumerate':
+                self.vInfo("Threads %r" % (threading.enumerate(),))
+                return                
+            if sSubCmd == 'info':
+                if not oT:
+                    self.vInfo("Listener Thread not started")
+                else:
+                    # len(lArgs) > 2
+                    lNames = [x.name for x in threading.enumerate()]
+                    if oT.name not in lNames:
+                        self.vWarn("Listener Thread DIED - you must \"sub run\": " + repr(lNames))
+                        self.oListenerThread = None
+                    else:
+                        self.vInfo("Listener Thread %r" % (oT.name,))
                 return
-            self.pfeedback("oListenerThread.stop()")
-            self.oListenerThread.stop()
-            self.oListenerThread.join()
-            self.oListenerThread = None
+            if sSubCmd == 'stop':
+                if not self.oListenerThread:
+                    self.vWarn("PikaListenerThread not already started")
+                    return
+                self.pfeedback("oListenerThread.stop()")
+                self.oListenerThread.stop()
+                self.oListenerThread.join()
+                self.oListenerThread = None
+                return
+            self.vError("Unrecognized subscribe thread command: " + str(lArgs) +'\n' +__doc__)
             return
 
         if lArgs[0] == 'hide':
@@ -453,7 +499,7 @@ class CmdLineApp(Cmd):
                 self.oListenerThread.vPprint('set', bool(lArgs[1]))
             return
         
-        self.vError("Unrecognized subscribe command: " + str(oArgs))
+        self.vError("Unrecognized subscribe command: " + str(oArgs) +'\n' +__doc__)
         
     do_subscribe = do_sub
     
@@ -475,8 +521,7 @@ class CmdLineApp(Cmd):
         else:
             sChartId = self.sDefaultChart
         if self.oListenerThread is None:
-            self.vError("PikaListenerThread not started; use 'sub run ...'")
-            return
+            self.vWarn("PikaListenerThread not started; do 'sub run retval.#'")
 
         lArgs = oArgs.split()
         if lArgs[0] == 'cmd':
@@ -510,7 +555,7 @@ class CmdLineApp(Cmd):
             self.eSendOnSpeaker(sChartId, sMsgType, sMsg)
             self.dLastJson[sChartId] = G(sMsg)
             return
-        self.vError("Unrecognized publish command: " + str(oArgs))
+        self.vError("Unrecognized publish command: " + str(oArgs) +'\n' +__doc__)
         
     do_publish = do_pub
     
@@ -572,7 +617,7 @@ class CmdLineApp(Cmd):
         
         if lArgs[0] == 'info':
             sMsgType = 'cmd' # Mt4 command
-            sCmd='jOTOrderInformation'
+            sCmd='jOTOrderInformationByTicket'
             assert len(lArgs) > 1, "ERROR: orders info iTicket"
             sArg1 = str(lArgs[1])
             sMsg = sFormatMessage(sMsgType, sChartId, sCmd, sArg1)
@@ -606,8 +651,36 @@ class CmdLineApp(Cmd):
             # FixMe: Tag with sMark
             self.dLastCmd[sChartId] = G(sMsg)
             return
+
+        if lArgs[0] == 'buy' or lArgs[0] == 'sell':
+            sMsgType = 'cmd' # Mt4 command
+            if lArgs[0] == 'buy':
+                iCmd = 0
+            else:
+                iCmd = 1 # Sell 1
+            assert len(lArgs) >= 3, "ERROR: order buy|sell sSymbol fVolume [fPrice iSlippage]"
+            # double stoploss, double takeprofit,
+            # string comment="", int magic=0
+            sArg1 = str(iCmd)
+            sSymbol = lArgs[1]
+            sVolume = lArgs[2]
+            if len(lArgs) >= 5:
+                sPrice = lArgs[3]
+                sSlippage = lArgs[4]
+                sCmd='iOTOrderSend'
+                sMsg = sFormatMessage(sMsgType, sChartId, sCmd, sSymbol, sArg1, sVolume, sPrice, sSlippage)
+            else:
+                sCmd='iOTOrderSendMarket'
+                sMsg = sFormatMessage(sMsgType, sChartId, sCmd, sSymbol, sArg1, sVolume)
+                
+            self.vDebug("Ordering: " +sMsg)
+            self.eSendOnSpeaker(sChartId, sMsgType, sMsg)
+            # FixMe: Tag with sMark
+            self.dLastCmd[sChartId] = G(sMsg)
+            return
+
         # (int iTicket, double fPrice, int iSlippage, color cColor=CLR_NONE)
-        self.vError("Unrecognized order command: " + str(oArgs))
+        self.vError("Unrecognized order command: " + str(oArgs) +'\n' +__doc__)
         
     do_order = do_ord
     do_orders = do_ord
@@ -625,11 +698,15 @@ class CmdLineApp(Cmd):
         if not pybacktest:
             self.poutput("Install pybacktest from git://github.com/ematvey/pybacktest/")
             return
+        try:
+            from OTrader.BacktestCmd import vDoBacktestCmd
+        except ImportError, e:
+            self.vError("backtest unfinished at the moment: " +str(e))
+            return
+        
         if not oArgs:
             self.poutput("Commands to backtest (and arguments) are required\n" + __doc__)
             return
-        # unfinished
-        from OTrader.BacktestCmd import vDoBacktestCmd
         vDoBacktestCmd(self, oArgs, oOpts=None)
         
     do_bac = do_back
@@ -677,7 +754,7 @@ class CmdLineApp(Cmd):
             else:
                 self.vError("Choose one of: get " +",".join(lRABBIT_GET_THUNKS))
             return
-        self.vError("Unrecognized rabbit command: " + str(oArgs))
+        self.vError("Unrecognized rabbit command: " + str(oArgs) +'\n' +__doc__)
 
     def postloop(self):
         self.vDebug("atexit")
@@ -725,7 +802,7 @@ def iMain():
     oArgParser.add_argument('-t', '--test',
                             dest='bUnittests', action='store_true', default=False,
                             help='Run unit test suite')
-    oArgParser.add_argument('-u', '--use_talib',
+    oArgParser.add_argument('-T', '--use_talib',
                             dest='bUseTalib', action='store_true', default=False,
                             help='Use Ta-lib for chart operations')
     oArgParser.add_argument("-c", "--chart",
