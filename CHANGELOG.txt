@@ -1,3 +1,9 @@
+commit 2c43ed72bc817662c45ba8d346a8af1240b26842
+Date:   Wed Jun 3 09:53:24 2015 +0300
+
+    Extended PikaChart.py and PikaCmd2.py.
+    Will probably break PikaCmd2.py out to a new package to support backtesting.
+
 commit e53b51433b28cc4c7dbe28ba7aa3db9d1d9498c8
 Date:   Wed May 27 12:09:06 2015 +0300
 
