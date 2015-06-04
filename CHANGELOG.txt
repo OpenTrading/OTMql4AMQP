@@ -1,3 +1,8 @@
+commit bd955f4daf46473f4e4d85fa6756042786b7b9ae
+Date:   Thu Jun 4 16:44:45 2015 +0300
+
+    Moved MQL4/Python/OTMql427/PikaCmd2.py to OpenTrader
+
 commit 2c43ed72bc817662c45ba8d346a8af1240b26842
 Date:   Wed Jun 3 09:53:24 2015 +0300
 

@@ -20,6 +20,7 @@ oLOG = logging
 from Mq4Chart import Mq4Chart, oFindChartByName, lFindAllCharts
 from PikaListener import PikaMixin
 from Mt4SafeEval import sPySafeEval
+from SimpleFormat import lUnFormatMessage
 
 if True:
     ePikaCallme = "PikaCallme disabled "
@@ -84,7 +85,7 @@ class PikaChart(Mq4Chart, PikaMixin):
         #? do we need the oProperties for content-type?
         # 'content_encoding', 'content_type', 'correlation_id', 'decode', 'delivery_mode', 'encode', 'expiration', 'headers', 'message_id', 'priority', 'reply_to', 'timestamp', 'type', 'user_id'
         
-        lArgs = self.lUnFormatMessage(sBody)
+        lArgs = lUnFormatMessage(sBody)
         sMsgType = lArgs[0]
         sChart = lArgs[1]
         sIgnore = lArgs[2] # should be a hash on the payload

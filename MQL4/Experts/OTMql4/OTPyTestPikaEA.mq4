@@ -314,15 +314,12 @@ void OnTick() {
 
     if (tTime != tNextbartime) {
         iBAR += 1; // = Bars - 100
-        bNewBar = true;
         iTICK = 0;
         tNextbartime = tTime;
-        // uInfo = uBarInfo();
 	uInfo = "json|" + jOTBarInformation(uSYMBOL, Period(), 0) ;
         uType = "bar";
         uMess  = zOTLibSimpleFormatBar(uType, uCHART_ID, 0, uTime, uInfo);
     } else {
-        bNewBar = false;
         iTICK += 1;
 	uInfo = "json|" + jOTTickInformation(uSYMBOL, Period()) ;
         uType = "tick";

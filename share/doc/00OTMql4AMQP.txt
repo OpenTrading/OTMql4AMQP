@@ -1,5 +1,5 @@
 ### OTMql4AMQP - AMQP bindings for MQL4 Python
-https://github.com/OpenTrading/OTMql4OTMql4AMQP/
+https://github.com/OpenTrading/OTMql4AMQP/
 
 This project allows the OpenTrading Metatrader-Python bridge
 (https://github.com/OpenTrading/OTMql4Py/)
@@ -42,11 +42,16 @@ the files are in fact identical (e.g. __init__.py).
 ### Project
 
 Please file any bugs in the issue tracker:
-https://github.com/OpenTrading/OTMql4OTMql4AMQP/issues
+https://github.com/OpenTrading/OTMql4AMQP/issues
 
 Use the Wiki to start topics for discussion:
-https://github.com/OpenTrading/OTMql4OTMql4AMQP/wiki
+https://github.com/OpenTrading/OTMql4AMQP/wiki
 It's better to use the wiki for knowledge capture, and then we can pull
 the important pages back into the documentation in the share/doc directory.
 You will need to be signed into github.com to see or edit in the wiki.
+
+You may want to also look at:
+https://github.com/OpenTrading/OpenTrader
+which provides a command-line interpreter to speak to an OTMql4AMQP
+enabled Metatrader.
 
