@@ -1,3 +1,8 @@
+commit 09130207a636ec05d1fa524e367fcfbfa27745ea
+Date:   Thu Jun 4 23:43:33 2015 +0300
+
+    Updated documentation.
+
 commit bd955f4daf46473f4e4d85fa6756042786b7b9ae
 Date:   Thu Jun 4 16:44:45 2015 +0300
 
