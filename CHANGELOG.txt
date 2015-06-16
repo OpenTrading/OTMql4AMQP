@@ -1,3 +1,8 @@
+commit 388ab02d7c2f730dca23cefc1a3b6adbdff2440a
+Date:   Tue Jun 16 14:04:02 2015 +0300
+
+    Added some extra checking for Rabbit server errors.
+
 commit 72a2d34f8f647df43b9130ed87284f27d6728efb
 Date:   Fri Jun 5 00:07:25 2015 +0300
 

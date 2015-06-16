@@ -90,7 +90,7 @@ class PikaChart(Mq4Chart, PikaMixin):
         sChart = lArgs[1]
         sIgnore = lArgs[2] # should be a hash on the payload
         sMark = lArgs[3]
-        sPayloadType = lArgs[4]
+        sVerbMaybe = lArgs[4]
         gPayload = lArgs[4:] # overwritten below
         
         if sMsgType == 'cmd':
@@ -111,11 +111,9 @@ class PikaChart(Mq4Chart, PikaMixin):
                     oElt.eMq4PushQueue(sBody)
                 return
 
-            l = oFindChartByName(sChart)
-            if l:
-                if len(l) != 1:
-                    sys.stdout.write("ERROR: vPikaDispatchOnListener too many charts named " +sChart +"\n")
-                l[0].eMq4PushQueue(sBody)
+            o = oFindChartByName(sChart)
+            if o is not None:
+                o.eMq4PushQueue(sBody)
                 return
 
             sys.stdout.write("WARN: vPikaDispatchOnListener unrecognized sBody " +sBody +"\n")
@@ -196,7 +194,7 @@ def iMain():
     iPeriod = 0
     sTopic = 'cmd'
     sMark = "%15.5f" % time.time()
-    sMsg = "%s|%s|%d|%s|%s" % (sTopic, sSymbol, iPeriod, sMark, '|'.join(lArgs),)
+    sMsg = "%s|%s|0|%s|%s|str|%s" % (sTopic, sSymbol+str(iPeriod), sMark, '|'.join(lArgs),)
     
     oChart = None
     try:

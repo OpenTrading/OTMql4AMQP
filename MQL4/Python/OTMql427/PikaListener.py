@@ -38,7 +38,8 @@ else:
 from OTLibLog import *
 oLOG = logging
 
-lKNOWN_TOPICS = ['tick', 'timer', 'retval', 'bar', 'cmd', 'eval', 'json'] # 'exec'
+# json was in here
+lKNOWN_TOPICS = ['tick', 'timer', 'retval', 'bar', 'cmd', 'eval'] # 'exec'
 
 class PikaMixin(object):
 
@@ -144,7 +145,8 @@ class PikaMixin(object):
         assert sOrigin, "eReturnOnSpeaker: oSpeakerChannel empty sOrigin"
         lOrigin = sOrigin.split("|")
         assert lOrigin, "eReturnOnSpeaker: oSpeakerChannel empty lOrigin"
-        assert lOrigin[0] in ['eval', 'cmd', 'json', 'exec'], \
+        # 'json' was in here
+        assert lOrigin[0] in ['eval', 'cmd', 'exec'], \
             "eReturnOnSpeaker: oSpeakerChannel not cmd " +sOrigin
         # This message is a reply in a cmd
         sMark = lOrigin[3]
