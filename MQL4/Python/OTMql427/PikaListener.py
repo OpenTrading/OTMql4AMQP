@@ -81,6 +81,7 @@ class PikaMixin(object):
                 self.oConnection = oConnection
                 oCONNECTION = oConnection
             except Exception, e:
+                #     raise exceptions.ProbableAuthenticationError
                 oLOG.exception("Error in oCreateConnection " + str(e))
                 raise
             
@@ -213,7 +214,7 @@ class PikaMixin(object):
                                             # exclusive=True,
                                             )
         
-    def bCloseConnectionSockets(self, oOptions=None):
+    def bCloseConnectionSockets(self, oIgnored=None):
         global oCONNECTION
 
         # might be called during a broken __init__

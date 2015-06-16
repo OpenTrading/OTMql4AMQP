@@ -142,7 +142,6 @@ int OnInit() {
                           "iDebugLevel=" + MathRound(fDebugLevel) + ", " +
                           ")");
         vPyExecuteUnicode("sFoobar = '%s : %s' % (sys.last_type, sys.last_value,)");
-        
         uRetval = uPySafeEval("sFoobar");
         if (StringFind(uRetval, "exceptions", 0) >= 0) {
             uRetval = "ERROR: PikaChart.PikaChart failed: "  + uRetval;
@@ -152,10 +151,22 @@ int OnInit() {
             uRetval = "PikaChart.PikaChart errored: "  + uRetval;
             vWarn(uRetval);
         }
-        Comment(uCHART_ID);
+	vInfo("Creating the connection to RabbitMQ server: make sure its running");
+	uRetval = uPySafeEval(uCHART_ID+".oCreateConnection()");
+	if (StringFind(uRetval, "ERROR:", 0) >= 0) {
+	    // This is where ProbableAuthenticationError is raised
+	    // ProbableAuthenticationError is raised even if there is not a problem
+	    // and you just have to restart the rabbitmq server. YMMV
+	    uRetval = "PANIC: oCreateConnection errored: (restart the rabbitmq server?)"  + uRetval;
+            vPanic(uRetval);
+            return(-3);
+	} else {
+	    // it will return a strings that is a repr of the oConnection
+	    uRetval = "oCreateConnection returned"  + uRetval;
+	    vWarn(uRetval);
+	}
         
-        iCONNECTION = iPyEvalInt("id(" +uCHART_ID +".oCreateConnection())");
-        // FixMe:! theres no way to no if this errored! No NAN in Mt4
+        iCONNECTION = iPyEvalInt("id(" +uCHART_ID +".oConnection)");
         if (iCONNECTION <= 0) {
             uRetval = "ERROR: oCreateConnection failed: is RabbitMQ running?";
             vPanic(uRetval);
@@ -166,6 +177,8 @@ int OnInit() {
         }
         GlobalVariableTemp("fPyPikaConnection");
         GlobalVariableSet("fPyPikaConnection", iCONNECTION);
+	// set the comment after the panics
+        Comment(uCHART_ID);
 
         if (iCALLME_TIMEOUT > 0) {
             vInfo("INFO: starting CallmeServer - this make take a while");
