@@ -1,3 +1,8 @@
+commit 7617d4244ea1c4c41fd20aa36767d3f771d394e0
+Date:   Thu Jun 18 16:40:30 2015 +0300
+
+    Added the wiki.
+
 commit 3bfb015559a897ab7349e649dbc578dee1f5b531
 Date:   Tue Jun 16 23:23:32 2015 +0300
 

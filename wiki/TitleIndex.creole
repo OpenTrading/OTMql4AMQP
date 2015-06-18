@@ -3,7 +3,9 @@
 
 * [[FrontPage]]
 * [[Home]]
+* [[RabbitMQServer]]
 * [[RoundTripping]]
+* [[TestExperts]]
 * [[TitleIndex]]
 
 ----

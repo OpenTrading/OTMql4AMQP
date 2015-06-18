@@ -1,0 +1,55 @@
+== Test Expert
+
+There is a test expert advisor in
+[[OTPyTestPikaEA.mq4|https://github.com/OpenTrading/OTMql4AMQP/raw/master/MQL4/Experts/OTMql4/OTPyTestPikaEA.mq4]]
+
+Attach the EA to a chart when you have a RabbitMQServer running.
+Then you open a command window and go to your {{{MQL4\Python}} directory and
+run the following command to see the messages the expert is broadcasting:
+{{{
+python OTMql427/PikaListener.py "#"
+}}}
+
+You can select which RabbitMQ messages you want to subscribe to from
+one or more of: {{{ticks bars timer retval`}}}
+
+To see just ticks, do
+{{{
+python OTMql427/PikaListener.py "tick.#"
+}}}
+To see timer events and ticks, do
+{{{
+python OTMql427/PikaListener.py "tick.#" "timer.#"
+}}}
+
+Read the [[RabbitMQ|http://www.rabbitmq.org]] documentation for further
+details of using {{{#}}} and {{{*`
+to select the messages you are interested in; you can select by
+type of message, the currency pair, period, the hex value of the {{{ChartID`.
+
+The interval for timer events can be set when you attach the expert:
+{{{
+extern int iTIMER_INTERVAL_SEC = 10;
+}}
+
+The information that is put on a tick is supplied by the function
+{{{sBarInfo}}} which puts together the information you want send
+to a remote client on every bar. Change it to suit your own needs.
+
+You can have many experts running on many charts. There is only one
+`Pika.connection.Connection}}} object, and it is shared by all charts.
+The total number of charts using the connection is kept in the global variable
+`fPY_PIKA_CONNECTION_USERS`. When the last expert is removed, this
+number drops to 0, and the Connection is shut down.
+
+You should always remove any {{{OTMql4Py}}} experts before you shut down Mt4.
+It may not initialize properly if you start Mt4 with an {{{OTMql4Py`
+expert already attached. You may have to remove the expert and restart
+Mt4 if it does not initialize properly.
+
+Specifically, if you load an {{{OTMql4Py}}} expert and the Mt4 log shows
+a message about {{{exceptions.SystemError`, it means that the Python
+DLL did not load properly, and you **must** restart if you want to use
+an {{{OTMql4Py}}} expert. You should get a pop-up Alert from Mt4 to alert
+you of this.
+
