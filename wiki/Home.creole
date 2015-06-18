@@ -1,0 +1,23 @@
+Welcome to the OTMql4AMQP wiki!
+
+This project allows the OpenTrading Metatrader-Python bridge
+(https://github.com/OpenTrading/OTMql4Py/)
+to work with RabbitMQ, or probably any version of AMQP,
+the emerging standard for high performance enterprise messaging,
+for asynchronous communications between financial and trading applications.
+It builds on OTMql4Py, and requires it as a pre-requisite.
+
+Use the Wiki to start topics for discussion; it's better to use the
+wiki for knowledge capture, and then we can pull pages back into the
+release documentation in the {{{wiki}}} directory. You may need to be
+signed into github.com to edit in the wiki.
+
+Please file any bugs in the
+[[issues tracker|https://github.com/OpenTrading/OTMql4AMQP/issues]].
+
+* [[FrontPage]]
+
+* [[TitleIndex]]
+
+----
+Please format wiki pages as Creole. http://wikicreole.org/

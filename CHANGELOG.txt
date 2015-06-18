@@ -1,3 +1,8 @@
+commit 3bfb015559a897ab7349e649dbc578dee1f5b531
+Date:   Tue Jun 16 23:23:32 2015 +0300
+
+    Minor bugfixes.
+
 commit 388ab02d7c2f730dca23cefc1a3b6adbdff2440a
 Date:   Tue Jun 16 14:04:02 2015 +0300
 

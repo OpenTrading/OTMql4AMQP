@@ -81,26 +81,6 @@ and bar information broadcast by the calls in `OnTimer` and `OnTick` in
 `OnTimer` is called every iTIMER_INTERVAL_SEC (10 sec.)
 which allows us to use Python to look for Pika inbound messages,
 or execute a stack of calls from Python to us in Metatrader.
-### Round Tripping
-
-Mt4 can call Python, but Python can't call Mt4. So we need to
-establish a round-trip from Mt4 that looks to see if there is anything
-that Python wants it to do.
-
-The way we do this is to make a Queue object from the Python library
-`Queue` and push anything Python wants done onto the Queue in Python.
-Then put a timer event in your Mt4 expert that fires periodically
-(like even 10 seconds), and calls the Python code to pop the work
-off the queue.
-
-However, Mt4 does not have an eval command to handle arbitrary strings
-to be executed. So we wrote the `zOTLibProcessCmd` in the OTMql4Lib
-project (OTLibProcessCmd.mq4)
-that approximates what should be Eval in Mt4.
-
-Depending on how you push things onto the queue, you may want to
-take the result of `zOTLibProcessCmd` and distribute it via RabbitMQ.
-
 ### Test Expert
 
 There is a test expert advisor in
