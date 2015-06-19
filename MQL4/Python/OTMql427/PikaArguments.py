@@ -40,6 +40,9 @@ def oParseOptions(sUsage):
     oArgParser.add_argument("-i", "--virtual", action="store",
                             dest="sVirtualHost", default="/",
                             help="the VirtualHost for the connection (default /)")
+    oArgParser.add_argument("-q", "--queue", action="store",
+                            dest="sQueueName", default="listen-for-ticks",
+                            help="the VirtualHost for the connection (default listen-for-ticks)")
     oArgParser.add_argument("-v", "--verbose", action="store",
                             dest="iVerbose", type=int, default=4,
                             help="the verbosity, 0 for silent 4 max (default 4)")

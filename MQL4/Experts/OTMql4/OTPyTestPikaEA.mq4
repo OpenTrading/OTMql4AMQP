@@ -42,8 +42,6 @@ Change to suit your own needs.
 int iCONNECTION = -1;
 double fPY_PIKA_CONNECTION_USERS = 0.0;
 
-int iACCNUM;
-
 int iTICK=0;
 int iBAR=1;
 
@@ -62,7 +60,7 @@ void vPanic(string uReason) {
     ExpertRemove();
 }
 
-/* 
+/*
 We could call Python from an indictator so we distinguish this
 */
 int iIS_EA=1;
@@ -103,8 +101,6 @@ int OnInit() {
             return(iRetval);
         }
         Print("Called iPyInit successfully");
-        
-        iACCNUM=AccountNumber();
 
         uArg="import pika";
         iRetval = iPySafeExec(uArg);
@@ -117,7 +113,7 @@ int OnInit() {
         } else {
             vDebug("Called " +uArg +" successfully");
         }
-        
+
         vPyExecuteUnicode("from OTMql427 import PikaChart");
         vPyExecuteUnicode("sFoobar = '%s : %s' % (sys.last_type, sys.last_value,)");
         uRetval = uPySafeEval("sFoobar");
@@ -163,9 +159,9 @@ int OnInit() {
 	} else {
 	    // it will return a strings that is a repr of the oConnection
 	    uRetval = "oCreateConnection returned"  + uRetval;
-	    vWarn(uRetval);
+	    vInfo(uRetval);
 	}
-        
+
         iCONNECTION = iPyEvalInt("id(" +uCHART_ID +".oConnection)");
         if (iCONNECTION <= 0) {
             uRetval = "ERROR: oCreateConnection failed: is RabbitMQ running?";
@@ -193,20 +189,21 @@ int OnInit() {
                 vWarn(uRetval);
             }
         }
-        
+
         fPY_PIKA_CONNECTION_USERS = 1.0;
-        
+
     }
+    
+    EventSetTimer(iTIMER_INTERVAL_SEC);
     GlobalVariableSet("fPyPikaConnectionUsers", fPY_PIKA_CONNECTION_USERS);
     vDebug("OnInit: fPyPikaConnectionUsers=" + fPY_PIKA_CONNECTION_USERS);
 
-    EventSetTimer(iTIMER_INTERVAL_SEC);
     return (0);
 }
 
 string ePyPikaPopQueue(string uChartId) {
     string uInput, uOutput, uInfo;
-    
+
     // FixMe: repeat until empty
     // We may want to loop over zMq4PopQueue to pop many commands
     uInput = uPySafeEval(uCHART_ID+".zMq4PopQueue()");
@@ -228,24 +225,22 @@ string ePyPikaPopQueue(string uChartId) {
             vWarn("ePyPikaPopQueue: " +uOutput);
             return(uOutput);
 	}
-        if (StringFind(uOutput, "error|", 0) == 0) {
-            // can be "error|" return value
-	    // This means that there was an error in our uOTPyPikaProcessCmd
-            vWarn("ePyPikaPopQueue: PikaProcessCmd returned: " +uOutput);
-            return(uOutput);
-	    // We can return an error value using the form
-	    // "retval|...|error|error string"
-	}
-	if (StringFind(uInput, "cmd", 0) == 0) {
+	if (StringFind(uInput, "cmd|", 0) >= 0) {
             // if the command is cmd|  - return a value as a retval|
             // We want the sMark from uInput instead of uTime
             // but we will do than in Python
-            uInfo = zOTLibSimpleFormatRetval("retval", uCHART_ID, 0, "0", uOutput);
+	    // WE INCLUDED THE SMARK
+	    if (StringFind(uInput, "|", 0) < 0) {
+		uOutput = "EXPECTED | in: " +uInput;
+		vWarn("ePyPikaPopQueue: " +uOutput);
+		return(uOutput);
+	    }
+            uInfo = zOTLibSimpleFormatRetval("retval", uCHART_ID, 0, "", uOutput);
             eReturnOnSpeaker(uCHART_ID, "retval", uInfo, uInput);
-            vDebug("ePyPikaPopQueue: retvaled " +uInfo);
+            vDebug("ePyPikaPopQueue: retvaled " +uInfo +" from: " +uOutput);
             return("");
         }
-        if (StringFind(uOutput, "void|", 0) == 0) {
+        if (StringFind(uOutput, "void|", 0) >= 0) {
 	    // if the command is void| - dont return a value
 	} else {
 	    vWarn("ePyPikaPopQueue: unrecognized " +uInput + " -> " +uOutput);
@@ -268,7 +263,8 @@ void OnTimer() {
 
     /* timer events can be called before we are ready */
     if (GlobalVariableCheck("fPyPikaConnectionUsers") == false) {
-      return;
+        vWarn("OnTimer: no fPyPikaConnectionUsers");
+	return;
     }
     iCONNECTION = MathRound(GlobalVariableGet("fPyPikaConnection"));
     if (iCONNECTION < 1) {
@@ -276,6 +272,15 @@ void OnTimer() {
         return;
     }
 
+    // FixMe: could use GetTickCount but we may not be logged in
+    // but maybe TimeCurrent requires us to be logged in?
+    // Add microseconds?
+    string uTime = IntegerToString(TimeCurrent());
+
+    uInfo = "json|" + jOTTimerInformation();
+    uMess  = zOTLibSimpleFormatTimer(uType, uCHART_ID, 0, uTime, uInfo);
+    eSendOnSpeaker(uCHART_ID, "timer", uMess);
+    // vTrace("OnTimer: sent " + uMess);
 
     // eHeartBeat first to see if there are any commands
     uRetval = uPySafeEval(uCHART_ID+".eHeartBeat("
@@ -290,15 +295,7 @@ void OnTimer() {
         vWarn("OnTimer: " +uRetval);
         // drop through
     }
-    
-    // FixMe: could use GetTickCount but we may not be logged in
-    // but maybe TimeCurrent requires us to be logged in?
-    // Add microseconds?
-    string uTime = IntegerToString(TimeCurrent());
-    
-    uInfo = "json|" + jOTTimerInformation();
-    uMess  = zOTLibSimpleFormatTimer(uType, uCHART_ID, 0, uTime, uInfo);
-    eSendOnSpeaker(uCHART_ID, "timer", uMess);
+
 }
 
 void OnTick() {
@@ -323,7 +320,7 @@ void OnTick() {
     // but maybe TimeCurrent requires us to be logged in?
     string uTime = IntegerToString(TimeCurrent());
     // same as Time[0]
-    datetime tTime=iTime(uSYMBOL, iTIMEFRAME, 0);
+    datetime tTime = iTime(uSYMBOL, Period(), 0);
 
     if (tTime != tNextbartime) {
         iBAR += 1; // = Bars - 100
@@ -358,14 +355,14 @@ void OnDeinit(const int iReason) {
 
         GlobalVariableDel("fPyPikaConnectionUsers");
         vDebug("OnDeinit: deleted fPyPikaConnectionUsers");
-        
+
         vPyDeInit();
     } else {
         fPY_PIKA_CONNECTION_USERS -= 1.0;
         GlobalVariableSet("fPyPikaConnectionUsers", fPY_PIKA_CONNECTION_USERS);
         vDebug("OnDeinit: decreased, value of fPyPikaConnectionUsers to: " + fPY_PIKA_CONNECTION_USERS);
     }
-    
+
     vDebug("OnDeinit: delete of the chart in Python");
     vPyExecuteUnicode(uCHART_ID +".vRemove()");
     Comment("");

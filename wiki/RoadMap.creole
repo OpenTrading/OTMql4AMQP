@@ -1,0 +1,12 @@
+== Road Map
+
+There are a lot of directions we can take this project, and a lot
+of things we can do. The Road Map is ideas that when they are accepted,
+proceed to getting fleshed out as Use-cases.
+
+The order should be approximately that of importance.
+
+
+
+----
+Parent: [[Home]]

@@ -18,8 +18,6 @@ import sys
 import logging
 import time
 
-import pika
-
 if True:
     eCALLME_IMPORT_ERROR = "PikaCallme disabled "
     PikaCallme = None
@@ -42,11 +40,11 @@ oLOG = logging
 lKNOWN_TOPICS = ['tick', 'timer', 'retval', 'bar', 'cmd', 'eval'] # 'exec'
 
 class PikaMixin(object):
-
     iDeliveryMode = 1 # (non-persisted)
     sContentType = 'text/plain'
 
     def __init__(self, sChartId, **dParams):
+        import pika
         self.oSpeakerChannel = None
         self.oListenerChannel = None
         self.oListenerThread = None
@@ -74,6 +72,7 @@ class PikaMixin(object):
         self.oConnection = None
         
     def oCreateConnection(self):
+        import pika
         global oCONNECTION
         if not self.oConnection:
             try:
@@ -154,6 +153,7 @@ class PikaMixin(object):
         lMess = sMess.split("|")
         assert lMess[0] == 'retval', \
             "eReturnOnSpeaker: lMess[0] should be retval: " +repr(lMess)
+        # these now should be equal
         lMess[3] = sMark
         # Replace the mark in the reply with the mark in the cmd
         sMess = '|'.join(lMess)
@@ -217,6 +217,7 @@ class PikaMixin(object):
                                             )
         
     def bCloseConnectionSockets(self, oIgnored=None):
+        import pika
         global oCONNECTION
 
         # might be called during a broken __init__
@@ -259,6 +260,7 @@ class PikaMixin(object):
         return True
 
 def iMain():
+    import pika
     from PikaArguments import oParseOptions
     
     sUsage = __doc__.strip()
@@ -277,8 +279,7 @@ def iMain():
         if oOptions.iVerbose >= 4:
             print "INFO: Listening with binding keys: " +" ".join(lArgs)
         oChart = PikaMixin('oUSDUSD_0_PIKA_0', **oOptions.__dict__)
-        
-        oChart.eBindBlockingListener('listen-for-ticks', lArgs)
+        oChart.eBindBlockingListener(oOptions.sQueueName, lArgs)
 
         i = 0
         while i < 5:
@@ -289,8 +290,8 @@ def iMain():
                 #raises:  pika.exceptions.ConnectionClosed
                 oChart.vPyRecvOnListener('listen-for-ticks', lArgs)
                 break
-            except  pika.exceptions.ConnectionClosed:
-                print "WARN: ConnectionClosed vPyRecvOnListener " +str(i)
+            except Exception, e:
+                print "WARN: vPyRecvOnListener " +str(e), i
                 continue
         i = 0
         while True:
