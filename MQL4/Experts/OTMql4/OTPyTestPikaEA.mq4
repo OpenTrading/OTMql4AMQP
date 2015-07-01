@@ -6,8 +6,8 @@
 
 #define INDICATOR_NAME          "PyTestPikaEA"
 
-//? extern int iSEND_PORT=5672;
-//? extern int iRECV_PORT=5672;
+//? extern int iSUBPUB_PORT=5672;
+//? extern int iREPREQ_PORT=5672;
 // can replace this with the IP address of an interface - not lo
 extern string uHOST_ADDRESS="127.0.0.1";
 extern string uUSERNAME = "guest";
@@ -219,18 +219,16 @@ string ePyPikaPopQueue(string uChartId) {
     } else {
         //vTrace("ePyPikaPopQueue: Processing popped exec message: " + uInput);
         uOutput = uOTPyPikaProcessCmd(uInput);
-	if (uOutput == "") {
-            // if the retval is "" we messed up - dont return a value
-	    uOutput = "UNHANDELED: " +uInput;
-            vWarn("ePyPikaPopQueue: " +uOutput);
-            return(uOutput);
-	}
-	if (StringFind(uInput, "cmd|", 0) >= 0) {
+	if ((StringFind(uInput, "cmd|", 0) >= 0) || (StringFind(uInput, "exec|", 0) >= 0)) {
             // if the command is cmd|  - return a value as a retval|
             // We want the sMark from uInput instead of uTime
             // but we will do than in Python
 	    // WE INCLUDED THE SMARK
-	    if (StringFind(uInput, "|", 0) < 0) {
+	    if (uOutput == "") {
+		// if the retval is "" its an error; return error|
+		vWarn("ePyPikaPopQueue: " +"UNHANDELED: " +uOutput);
+		uOutput = "error|" +uInput;
+	    } else if (StringFind(uInput, "|", 0) < 0) {
 		uOutput = "EXPECTED | in: " +uInput;
 		vWarn("ePyPikaPopQueue: " +uOutput);
 		return(uOutput);

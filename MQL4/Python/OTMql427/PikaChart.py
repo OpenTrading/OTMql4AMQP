@@ -45,7 +45,22 @@ class PikaChart(Mq4Chart, PikaMixin):
         Mq4Chart.__init__(self, sChartId, dParams)
         PikaMixin.__init__(self, sChartId, **dParams)
         self.sChartId = sChartId
-
+        self.sQueueName = "listen-for-commands"
+        
+    def vPikaRecvOnListener(self, sQueueName, lBindingKeys):
+        if self.oListenerChannel is None:
+            self.eBindBlockingListener(sQueueName, lBindingKeys)
+        assert self.oListenerChannel, "vPikaRecvOnListener: oListenerChannel is null"
+        #FixMe: does this block?
+        # http://www.rabbitmq.com/amqp-0-9-1-reference.html#basic.consume
+        # no-wait no-wait
+        # not in pika.channel.Channel.basic_consume
+        self.oListenerChannel.basic_consume(self.vPikaCallbackOnListener,
+                                            queue=self.oListenerQueueName,
+                                            exclusive=True,
+                                            no_ack=False
+        )
+        
     def eHeartBeat(self, iTimeout=0):
         """
         The heartbeat is usually called from the Mt4 OnTimer.
@@ -70,7 +85,7 @@ class PikaChart(Mq4Chart, PikaMixin):
         # does this block? do we set a timeout?
         if self.oListenerChannel is None:
             lBindingKeys = ['cmd.#', 'eval.#', 'json.#']
-            self.vPikaRecvOnListener("listen-for-commands", lBindingKeys)
+            self.vPikaRecvOnListener(self.sQueueName, lBindingKeys)
 
         # This is the disabled callme server code
         if iTimeout > 0 and self.oListenerServer:

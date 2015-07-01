@@ -37,9 +37,9 @@ The information that is put on a tick is supplied by the function
 to a remote client on every bar. Change it to suit your own needs.
 
 You can have many experts running on many charts. There is only one
-`Pika.connection.Connection}}} object, and it is shared by all charts.
+{{{Pika.connection.Connection}}} object, and it is shared by all charts.
 The total number of charts using the connection is kept in the global variable
-`fPY_PIKA_CONNECTION_USERS`. When the last expert is removed, this
+{{{fPY_PIKA_CONNECTION_USERS}}}`. When the last expert is removed, this
 number drops to 0, and the Connection is shut down.
 
 You should always remove any {{{OTMql4Py}}} experts before you shut down Mt4.

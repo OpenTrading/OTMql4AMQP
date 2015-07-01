@@ -183,20 +183,6 @@ class PikaMixin(object):
 
         return ""
 
-    def vPikaRecvOnListener(self, sQueueName, lBindingKeys):
-        if self.oListenerChannel is None:
-            self.eBindBlockingListener(sQueueName, lBindingKeys)
-        assert self.oListenerChannel, "vPikaRecvOnListener: oListenerChannel is null"
-        #FixMe: does this block?
-        # http://www.rabbitmq.com/amqp-0-9-1-reference.html#basic.consume
-        # no-wait no-wait
-        # not in pika.channel.Channel.basic_consume
-        self.oListenerChannel.basic_consume(self.vPikaCallbackOnListener,
-                                            queue=self.oListenerQueueName,
-                                            exclusive=True,
-                                            no_ack=False
-        )
-        
     def vPyCallbackOnListener(self, oChannel, oMethod, oProperties, lBody):
         # dir(oProperties) = [app_id', 'cluster_id', 'content_encoding', 'content_type', 'correlation_id', 'decode', 'delivery_mode', 'encode', 'expiration', 'headers', 'message_id', 'priority', 'reply_to', 'timestamp', 'type', 'user_id']
         sMess = "vPyCallbackOnListener: %r" % (lBody, )
@@ -267,7 +253,7 @@ def iMain():
     oArgParser = oParseOptions(sUsage)
     oArgParser.add_argument('lArgs', action="store",
                             nargs="*",
-                            help="the message to send (required)")
+                            help="the topics to subscribe to")
     oOptions = oArgParser.parse_args()
     lArgs = oOptions.lArgs
 

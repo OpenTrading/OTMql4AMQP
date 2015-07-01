@@ -11,12 +11,12 @@ Then put a timer event in your Mt4 expert that fires periodically
 off the queue.
 
 However, Mt4 does not have an eval command to handle arbitrary strings
-to be executed. So we wrote the `zOTLibProcessCmd` in the OTMql4Lib
+to be executed. So we wrote the {{{zOTLibProcessCmd}}}` in the OTMql4Lib
 project (OTLibProcessCmd.mq4)
 that approximates what should be Eval in Mt4.
 
 Depending on how you push things onto the queue, you may want to
-take the result of `zOTLibProcessCmd` and distribute it via RabbitMQ.
+take the result of {{{zOTLibProcessCmd}}} and distribute it via RabbitMQ.
 
 
 ----
