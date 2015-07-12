@@ -18,6 +18,8 @@ import sys
 import logging
 import time
 
+from SimpleFormat import lKNOWN_TOPICS
+
 if True:
     eCALLME_IMPORT_ERROR = "PikaCallme disabled "
     PikaCallme = None
@@ -36,8 +38,6 @@ else:
 from OTLibLog import *
 oLOG = logging
 
-# json was in here
-lKNOWN_TOPICS = ['tick', 'timer', 'retval', 'bar', 'cmd', 'eval'] # 'exec'
 
 class PikaMixin(object):
     iDeliveryMode = 1 # (non-persisted)

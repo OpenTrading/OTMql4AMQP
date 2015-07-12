@@ -1,3 +1,8 @@
+commit 8c240b8f21cd25f30e687f9388aa8a697e57b081
+Date:   Wed Jul 1 23:03:49 2015 +0300
+
+    Refactored the threading in OpenTrader
+
 commit 109008feb17cbf9d1a533771987621ce2580cb99
 Date:   Fri Jun 19 17:17:58 2015 +0300
 

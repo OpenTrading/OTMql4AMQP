@@ -42,7 +42,7 @@ class PikaChart(Mq4Chart, PikaMixin):
     sContentType = 'text/plain'
 
     def __init__(self, sChartId, **dParams):
-        Mq4Chart.__init__(self, sChartId, dParams)
+        Mq4Chart.__init__(self, sChartId, **dParams)
         PikaMixin.__init__(self, sChartId, **dParams)
         self.sChartId = sChartId
         self.sQueueName = "listen-for-commands"
