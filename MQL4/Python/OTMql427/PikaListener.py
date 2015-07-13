@@ -18,7 +18,8 @@ import sys
 import logging
 import time
 
-from SimpleFormat import lKNOWN_TOPICS
+# from SimpleFormat import lKNOWN_TOPICS
+lKNOWN_TOPICS = ['tick', 'timer', 'retval', 'bar', 'cmd', 'eval', 'exec']
 
 if True:
     eCALLME_IMPORT_ERROR = "PikaCallme disabled "
@@ -80,6 +81,7 @@ class PikaMixin(object):
                 assert oConnection, "oCreateConnection: no oConnection created"
                 self.oConnection = oConnection
                 oCONNECTION = oConnection
+                vDebug("Created connection " +str(id(oConnection)))
             except Exception, e:
                 #     raise exceptions.ProbableAuthenticationError
                 oLOG.exception("Error in oCreateConnection " + str(e))
@@ -103,6 +105,7 @@ class PikaMixin(object):
 
             time.sleep(0.1)
             self.oSpeakerChannel = oChannel
+            vDebug("Bound speaker channel " +str(id(oChannel)))
 
     def eBindBlockingListener(self, sQueueName, lBindingKeys=None):
         """
@@ -132,6 +135,7 @@ class PikaMixin(object):
                                     )
             time.sleep(0.1)
             self.oListenerChannel = oChannel
+            vDebug("Bound listener channel " +str(id(oChannel)))
             
     def eReturnOnSpeaker(self, sType, sMess, sOrigin):
         """
@@ -180,7 +184,7 @@ class PikaMixin(object):
                                            body=sMess,
                                            mandatory=False, immediate=False,
                                            properties=self.oProperties)
-
+        vDebug("eSendOnSpeaker: sent " + sMess)
         return ""
 
     def vPyCallbackOnListener(self, oChannel, oMethod, oProperties, lBody):

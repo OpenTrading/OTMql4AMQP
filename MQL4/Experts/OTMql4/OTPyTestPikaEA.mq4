@@ -45,14 +45,6 @@ double fPY_PIKA_CONNECTION_USERS = 0.0;
 int iTICK=0;
 int iBAR=1;
 
-string uOTPyPikaProcessCmd(string uCmd) {
-    string uRetval;
-    uRetval = zOTLibProcessCmd(uCmd);
-    // can be "void|" return value
-    // empty string means the command was not handled.
-    return(uRetval);
-}
-
 void vPanic(string uReason) {
     // A panic prints an error message and then aborts
     vError("PANIC: " + uReason);
@@ -215,11 +207,13 @@ string ePyPikaPopQueue(string uChartId) {
 
     // the uInput will be empty if there is nothing to do.
     if (uInput == "") {
-        //vTrace("ePyPikaPopQueue: " +uInput);
+        // vTrace("ePyPikaPopQueue: there is nothing to do");
     } else {
-        //vTrace("ePyPikaPopQueue: Processing popped exec message: " + uInput);
-        uOutput = uOTPyPikaProcessCmd(uInput);
-	if ((StringFind(uInput, "cmd|", 0) >= 0) || (StringFind(uInput, "exec|", 0) >= 0)) {
+        uOutput = zOTLibProcessCmd(uInput);
+        // vTrace("ePyPikaPopQueue: Processing popped exec message: " + uOutput);
+        if (StringFind(uOutput, "void|", 0) >= 0) {
+	    // if the command is void| - dont return a value
+	} else if ((StringFind(uInput, "cmd|", 0) >= 0) || (StringFind(uInput, "exec|", 0) >= 0)) {
             // if the command is cmd|  - return a value as a retval|
             // We want the sMark from uInput instead of uTime
             // but we will do than in Python
@@ -227,19 +221,16 @@ string ePyPikaPopQueue(string uChartId) {
 	    if (uOutput == "") {
 		// if the retval is "" its an error; return error|
 		vWarn("ePyPikaPopQueue: " +"UNHANDELED: " +uOutput);
-		uOutput = "error|" +uInput;
+		uOutput = "00000000|error|" +uInput;
 	    } else if (StringFind(uInput, "|", 0) < 0) {
-		uOutput = "EXPECTED | in: " +uInput;
+		uOutput = "ERROR EXPECTED | in: " +uInput;
 		vWarn("ePyPikaPopQueue: " +uOutput);
 		return(uOutput);
 	    }
             uInfo = zOTLibSimpleFormatRetval("retval", uCHART_ID, 0, "", uOutput);
+            vDebug("ePyPikaPopQueue: retvaling " +uInfo +" from: " +uOutput);
             eReturnOnSpeaker(uCHART_ID, "retval", uInfo, uInput);
-            vDebug("ePyPikaPopQueue: retvaled " +uInfo +" from: " +uOutput);
             return("");
-        }
-        if (StringFind(uOutput, "void|", 0) >= 0) {
-	    // if the command is void| - dont return a value
 	} else {
 	    vWarn("ePyPikaPopQueue: unrecognized " +uInput + " -> " +uOutput);
 	}
@@ -278,11 +269,9 @@ void OnTimer() {
     uInfo = "json|" + jOTTimerInformation();
     uMess  = zOTLibSimpleFormatTimer(uType, uCHART_ID, 0, uTime, uInfo);
     eSendOnSpeaker(uCHART_ID, "timer", uMess);
-    // vTrace("OnTimer: sent " + uMess);
-
+    
     // eHeartBeat first to see if there are any commands
-    uRetval = uPySafeEval(uCHART_ID+".eHeartBeat("
-                          +IntegerToString(iCALLME_TIMEOUT) +")");
+    uRetval = uPySafeEval(uCHART_ID+".eHeartBeat(0)");
     if (StringFind(uRetval, "ERROR: ", 0) >= 0) {
         uRetval = "ERROR: eHeartBeat failed: "  + uRetval;
         vWarn("OnTimer: " +uRetval);
