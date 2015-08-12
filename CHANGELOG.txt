@@ -1,3 +1,8 @@
+commit 56037a71aaf23359120fb59c20e597d3bfe1bf90
+Date:   Mon Jul 13 20:20:24 2015 +0300
+
+     Tried to fix communications for errors but it still needs a reqrite
+
 commit 20b89c2e215ac635beddb6975805ead01a992ca2
 Date:   Sun Jul 12 22:29:58 2015 +0300
 

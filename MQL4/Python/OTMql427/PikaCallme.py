@@ -145,7 +145,7 @@ class Server(server.Server):
 def iMain():
     import callme
     from PikaArguments import oParseOptions
-    
+
     sUsage = __doc__.strip()
     oArgParser = oParseOptions(sUsage)
     oArgParser.add_argument('lArgs', action="store",
@@ -170,7 +170,7 @@ def iMain():
 #                 amqp_port=5672,
         while i < iMax:
             i += 1
-            if oOptions.iVerbose >= 4:
+            if oOptions.iDebugLevel >= 4:
                 print "DEBUG: RPC %d for: %s" % (i, sCmd,)
             try:
                 # sRetval = proxy1.sPySafeEval('str(' +sCmd +')')
@@ -181,7 +181,7 @@ def iMain():
                 continue
     except KeyboardInterrupt:
         pass
-    except Exception, e:
+    except Exception as e:
         print "ERROR: " +str(e)
         raise
     finally:

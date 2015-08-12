@@ -19,7 +19,7 @@ def oParseOptions(sUsage):
     # rabbit
     oArgParser.add_argument("-a", "--address",
                             action="store",
-                            dest="sHostaddress",
+                            dest="sHostAddress",
                             default="127.0.0.1",
                             help="the TCP address to subscribe on (default 127.0.0.1)")
     oArgParser.add_argument("-o", "--pubport", action="store",
@@ -44,7 +44,7 @@ def oParseOptions(sUsage):
                             dest="sQueueName", default="listen-for-ticks",
                             help="the VirtualHost for the connection (default listen-for-ticks)")
     oArgParser.add_argument("-v", "--verbose", action="store",
-                            dest="iVerbose", type=int, default=4,
+                            dest="iDebugLevel", type=int, default=4,
                             help="the verbosity, 0 for silent 4 max (default 4)")
-    return(oArgParser)
+    return oArgParser
 

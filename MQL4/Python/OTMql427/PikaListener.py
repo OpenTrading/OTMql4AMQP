@@ -18,8 +18,7 @@ import sys
 import logging
 import time
 
-# from SimpleFormat import lKNOWN_TOPICS
-lKNOWN_TOPICS = ['tick', 'timer', 'retval', 'bar', 'cmd', 'eval', 'exec']
+from OTMql427.SimpleFormat import lKNOWN_TOPICS
 
 if True:
     eCALLME_IMPORT_ERROR = "PikaCallme disabled "
@@ -32,11 +31,11 @@ else:
         import PikaCallme
         from Mt4SafeEval import sPySafeEval
         eCALLME_IMPORT_ERROR = ""
-    except ImportError, e:
+    except ImportError as e:
         eCALLME_IMPORT_ERROR = "Failed to import PikaCallme: " + str(e)
         PikaCallme = None
 
-from OTLibLog import *
+from OTLibLog import vError, vWarn, vInfo, vDebug, vTrace
 oLOG = logging
 
 
@@ -51,9 +50,9 @@ class PikaMixin(object):
         self.oListenerThread = None
         self.oListenerServer = None
         self.sChartId = sChartId
-        self.iSpeakerPort = dParams.get('iSpeakerPort', 5672)
-        self.iListenerPort = dParams.get('iListenerPort', 5672)
-        self.sHostaddress = dParams.get('sHostaddress', '127.0.0.1')
+        self.iSubPubPort = dParams.get('iSubPubPort', 5672)
+        self.iReqRepPort = dParams.get('iReqRepPort', 5672)
+        self.sHostAddress = dParams.get('sHostAddress', '127.0.0.1')
         # I think really this should be program PID specific
         # I think we want one exchange per terminal process
         self.sExchangeName = dParams.get('sExchangeName', 'Mt4')
@@ -66,12 +65,12 @@ class PikaMixin(object):
         self.oCredentials = pika.PlainCredentials(self.sUsername, self.sPassword)
         #? channel_max heartbeat_interval connection_attempts socket_timeout
         self.oParameters = pika.ConnectionParameters(credentials=self.oCredentials,
-                                                     host=self.sHostaddress,
+                                                     host=self.sHostAddress,
                                                      virtual_host=self.sVirtualHost)
         self.oProperties = pika.BasicProperties(content_type=self.sContentType,
                                                 delivery_mode=self.iDeliveryMode)
         self.oConnection = None
-        
+
     def oCreateConnection(self):
         import pika
         global oCONNECTION
@@ -82,13 +81,13 @@ class PikaMixin(object):
                 self.oConnection = oConnection
                 oCONNECTION = oConnection
                 vDebug("Created connection " +str(id(oConnection)))
-            except Exception, e:
+            except Exception as e:
                 #     raise exceptions.ProbableAuthenticationError
                 oLOG.exception("Error in oCreateConnection " + str(e))
                 raise
-            
+
         return self.oConnection
-    
+
     def eBindBlockingSpeaker(self):
         """
         We are going to use our Speaker channel as a broadcast
@@ -136,7 +135,7 @@ class PikaMixin(object):
             time.sleep(0.1)
             self.oListenerChannel = oChannel
             vDebug("Bound listener channel " +str(id(oChannel)))
-            
+
     def eReturnOnSpeaker(self, sType, sMess, sOrigin):
         """
         """
@@ -144,7 +143,7 @@ class PikaMixin(object):
             sRetval = "eReturnOnSpeaker: oSpeakerChannel unhandled topic " +sMess
             vError(sRetval)
             return sRetval
-        
+
         assert sOrigin, "eReturnOnSpeaker: oSpeakerChannel empty sOrigin"
         lOrigin = sOrigin.split("|")
         assert lOrigin, "eReturnOnSpeaker: oSpeakerChannel empty lOrigin"
@@ -161,9 +160,9 @@ class PikaMixin(object):
         lMess[3] = sMark
         # Replace the mark in the reply with the mark in the cmd
         sMess = '|'.join(lMess)
-        
+
         return self.eSendOnSpeaker(sType, sMess)
-    
+
     def eSendOnSpeaker(self, sType, sMess):
         if sType not in lKNOWN_TOPICS:
             sRetval = "eSendOnSpeaker: oSpeakerChannel unhandled topic " +sMess
@@ -174,7 +173,7 @@ class PikaMixin(object):
 
         assert self.oSpeakerChannel, "eSendOnSpeaker: oSpeakerChannel is null"
         assert self.oConnection, "eSendOnSpeaker: oConnection is null"
-        
+
         # we will break the sChartId up into dots from the underscores
         # That way the end consumer can look at the feed selectively
         sPublishingKey = sType + '.' + self.sChartId.replace('_', '.')
@@ -187,25 +186,25 @@ class PikaMixin(object):
         vDebug("eSendOnSpeaker: sent " + sMess)
         return ""
 
-    def vPyCallbackOnListener(self, oChannel, oMethod, oProperties, lBody):
+    def vPikaCallbackOnListener(self, oChannel, oMethod, oProperties, lBody):
         # dir(oProperties) = [app_id', 'cluster_id', 'content_encoding', 'content_type', 'correlation_id', 'decode', 'delivery_mode', 'encode', 'expiration', 'headers', 'message_id', 'priority', 'reply_to', 'timestamp', 'type', 'user_id']
-        sMess = "vPyCallbackOnListener: %r" % (lBody, )
+        sMess = "vPikaCallbackOnListener: %r" % (lBody, )
         print "INFO: " +sMess
         oChannel.basic_ack(delivery_tag=oMethod.delivery_tag)
-        
-    def vPyRecvOnListener(self, sQueueName, lBindingKeys):
+
+    def vPikaRecvOnListener(self, sQueueName, lBindingKeys):
         if self.oListenerChannel is None:
             self.eBindBlockingListener(sQueueName, lBindingKeys)
-        assert self.oListenerChannel, "vPyRecvOnListener: oListenerChannel is null"
+        assert self.oListenerChannel, "vPikaRecvOnListener: oListenerChannel is null"
         #FixMe: does this block? no
         # http://www.rabbitmq.com/amqp-0-9-1-reference.html#basic.consume
         # no-wait no-wait
         # not in pika.channel.Channel.basic_consume
-        self.oListenerChannel.basic_consume(self.vPyCallbackOnListener,
+        self.oListenerChannel.basic_consume(self.vPikaCallbackOnListener,
                                             queue=self.oListenerQueueName,
                                             # exclusive=True,
                                             )
-        
+
     def bCloseConnectionSockets(self, oIgnored=None):
         import pika
         global oCONNECTION
@@ -245,14 +244,14 @@ class PikaMixin(object):
             oCONNECTION = None
         except (KeyboardInterrupt, pika.exceptions.ConsumerCancelled,):
             pass
-        
+
         time.sleep(0.1)
         return True
 
 def iMain():
     import pika
     from PikaArguments import oParseOptions
-    
+
     sUsage = __doc__.strip()
     oArgParser = oParseOptions(sUsage)
     oArgParser.add_argument('lArgs', action="store",
@@ -266,7 +265,7 @@ def iMain():
 
     oChart = None
     try:
-        if oOptions.iVerbose >= 4:
+        if oOptions.iDebugLevel >= 4:
             print "INFO: Listening with binding keys: " +" ".join(lArgs)
         oChart = PikaMixin('oUSDUSD_0_PIKA_0', **oOptions.__dict__)
         oChart.eBindBlockingListener(oOptions.sQueueName, lArgs)
@@ -274,14 +273,14 @@ def iMain():
         i = 0
         while i < 5:
             i += 1
-            if oOptions.iVerbose >= 4:
+            if oOptions.iDebugLevel >= 4:
                 print "DEBUG: Listening: " +str(i)
             try:
                 #raises:  pika.exceptions.ConnectionClosed
-                oChart.vPyRecvOnListener('listen-for-ticks', lArgs)
+                oChart.vPikaRecvOnListener('listen-for-ticks', lArgs)
                 break
-            except Exception, e:
-                print "WARN: vPyRecvOnListener " +str(e), i
+            except Exception as e:
+                print "WARN: vPikaRecvOnListener " +str(e), i
                 continue
         i = 0
         while True:
@@ -292,10 +291,10 @@ def iMain():
             except  pika.exceptions.ConnectionClosed:
                 print "WARN: ConnectionClosed process_data_events" +str(i)
                 time.sleep(1)
-            
+
     except KeyboardInterrupt:
         pass
-    except Exception, e:
+    except Exception as e:
         print "ERROR: " +str(e)
 
     try:
