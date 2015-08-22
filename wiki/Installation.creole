@@ -1,0 +1,41 @@
+
+== Installation
+
+In general, recusively copy everything in the {{{MQL4}}} directory
+to your {{{c:\Program Files\[metatrader directory]\MQL4}}} directory.
+
+This is the same as making the following 4 directories if they don't aleady exist:
+* {{{c:\Program Files\[metatrader directory]\MQL4\Experts\OTMql4}}}
+* {{{c:\Program Files\[metatrader directory]\MQL4\Include\OTMql4}}}
+* {{{c:\Program Files\[metatrader directory]\MQL4\Libraries\OTMql4}}}
+* {{{c:\Program Files\[metatrader directory]\MQL4\Python\OTMql427}}}
+and then copying:
+{{{
+MQL4\Include\OTMql4\*.mqh
+=> c:\Program Files\[metatrader directory]\MQL4\Include\OTMql4
+
+MQL4\Libraries\OTMql4\*.mqh
+=> c:\Program Files\[metatrader directory]\MQL4\Libraries\OTMql4
+
+MQL4\Experts\OTMql4\*.mq4 
+=> c:\Program Files\[metatrader directory]\MQL4\Experts\OTMql4
+
+MQL4\Python\OTMql427\*.*
+=> c:\Program Files\[metatrader directory]\MQL4\Python\OTMql427
+}}}
+
+=== Prerequisites ===
+
+This project requires the prior installation of our
+MQL4 trading library: https://github.com/OpenTrading/OTMql4Lib.
+Again, {{{git clone}}} this from https://github.com and recursively copy
+it's folder MQL4 over the MQL4 folder of your Metatrader installation.
+
+This project requires the prior installation of our MQL4
+Python bridge: https://github.com/OpenTrading/OTMql4Py.
+Again, {{{git clone}}} this from https://github.com and recursively copy
+it's folder MQL4 over the MQL4 folder of your Metatrader installation.
+
+One day we'll make an installer, but for now, you must install the three
+projects manually, and if you update the code via {{{git pull}}}, be
+sure to update all three, as they are usually checked in together.
