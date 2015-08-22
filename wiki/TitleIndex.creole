@@ -3,6 +3,7 @@
 
 * [[FrontPage]]
 * [[Home]]
+* [[Installation]]
 * [[Rabbit4Mt4]]
 * [[RabbitMQServer]]
 * [[RoadMap]]

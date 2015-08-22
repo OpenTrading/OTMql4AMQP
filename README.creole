@@ -1,23 +1,26 @@
-# OTMql4AMQP
+== OTMql4AMQP - AMQP bindings for MQL4 Python
 
-### OTMql4AMQP - AMQP bindings for MQL4 Python
 https://github.com/OpenTrading/OTMql4AMQP/
 
 This project allows the OpenTrading Metatrader-Python bridge
 (https://github.com/OpenTrading/OTMql4Py/)
 to work with RabbitMQ, or probably any version of AMQP,
-the emerging standard for high performance enterprise messaging,
-for asynchronous communications between financial and trading applications.
+a high performance enterprise messaging prtotcol
+for asynchronous communications between applications.
 It builds on OTMql4Py, and requires it as a pre-requisite.
 
 In your Python, you must have installed Pika:
 https://pypi.python.org/pypi/pika/
 Pika offers the advantage of being pure Python: no DLLs to compile
 or install. Pika communicates with AMQP servers, the most common
-open-source one being RabbitMQ http://www.rabbitmq.com
-You will need an AMPQ server installed, configured and running
-to use this project. The code assumes the default server setup
-of username: guest, password: guest, virtual host: /.
+open-source one being RabbitMQ.
+
+You will also need an AMQP server installed, configured and running
+to use this project, which can be a challenge under Windows; see
+http://www.rabbitmq.org. The code assumes the default server setup
+of username: guest, password: guest, virtual host: /. For a brokerless
+messaging protocol that does not require installing a server, see
+our ZeroMQ bridge, https://github.com/OpenTrading/OTMql4Zmq/
 
 **This is a work in progress - a developers' pre-release version.**
 
@@ -33,21 +36,32 @@ the Windows version, and the AMQP server version and version of the Pika.**
 This code in known to run under Linux Wine (1.7.x), so this project
 bridges Metatrader to RabbitMQ under Linux.
 
-### Installation
+=== Installation
 
-For the moment there is no installer: just "git clone" or download the
+For the moment there is no installer: just {{{git clone}}} or download the
 zip from github.com and unzip into an empty directory. Then recursively copy
 the folder MQL4 over the MQL4 folder of your Metatrader installation. It will
 not overwrite any Mt4 system files; if it overwrites any OTMql4Py files,
-the files are in fact identical (e.g. __init__.py).
+the files are in fact identical (e.g. {{{__init__.py}}}). See
+Installation (https://github.com/OpenTrading/OpenTrader/wiki/Installation) .
 
-### Project
 
-Please file any bugs in the issue tracker:
-https://github.com/OpenTrading/OTMql4AMQP/issues
+Attach the
+OTPyTestPikaEA.mq4 (https://github.com/OpenTrading/OTMql4AMQP/raw/master/MQL4/Experts/OTMql4/OTPyTestPikaEA.mq4)
+EA to a chart and make sure it's working; look at the Experts log in Mt4
+to see messages of success.
+
+Look at the {{{OnTick}} and {{{OnTimer}}} functions of {{{OTPyTestPikaEA.mq4}}}
+to see how the EA works to send and receive messages from
+OTCmd2 (https://github.com/OpenTrading/OpenTrader/wiki/DocOTCmd2) .
+
+=== Project
+
+Please file any bugs in the 
+issue tracker (https://github.com/OpenTrading/OTMql4AMQP/issues) .
 
 Use the Wiki to start topics for discussion:
-https://github.com/OpenTrading/OTMql4AMQP/wiki
+https://github.com/OpenTrading/OTMql4AMQP/wiki/Home
 It's better to use the wiki for knowledge capture, and then we can pull
 the important pages back into the documentation in the share/doc directory.
 You will need to be signed into github.com to see or edit in the wiki.
@@ -57,27 +71,6 @@ https://github.com/OpenTrading/OpenTrader
 which provides a command-line interpreter to speak to an OTMql4AMQP
 enabled Metatrader.
 
-### Testing
+* Home (https://github.com/OpenTrading/OpenTrader/wiki/Home) .
 
-If you open a command window and go to your `MQL4\Python` directory
-run this command first
-`
-python OTMql427/PikaListener.py "#"
-`
-Then open another command window and go to your `MQL4\Python` directory
-run this command second
-`
-python OTMql427/PikaChart.py "foo"
-`
-You should soon see `['foo']` appear in the first window.
-
-If it does not work, then solve this problem first, because it
-won't work from Python under Mt4 if it doesn't work here.
-
-If you leave the first command running, you should see the tick
-and bar information broadcast by the calls in `OnTimer` and `OnTick` in
-`MQL4/Experts/OTMql4/OTPyTestPikaEA.mq4`
-
-`OnTimer` is called every iTIMER_INTERVAL_SEC (10 sec.)
-which allows us to use Python to look for Pika inbound messages,
-or execute a stack of calls from Python to us in Metatrader.
+* TitleIndex (https://github.com/OpenTrading/OpenTrader/wiki/TitleIndex) .
