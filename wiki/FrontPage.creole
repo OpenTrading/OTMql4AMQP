@@ -71,6 +71,6 @@ https://github.com/OpenTrading/OpenTrader
 which provides a command-line interpreter to speak to an OTMql4AMQP
 enabled Metatrader.
 
-* [[Home|https://github.com/OpenTrading/OpenTrader/wiki/Home]] .
+* [[Home|https://github.com/OpenTrading/OTMql4AMQP/wiki/Home]] .
 
-* [[TitleIndex|https://github.com/OpenTrading/OpenTrader/wiki/TitleIndex]] .
+* [[TitleIndex|https://github.com/OpenTrading/OTMql4AMQP/wiki/TitleIndex]] .
