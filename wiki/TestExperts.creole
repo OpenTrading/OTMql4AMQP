@@ -1,4 +1,4 @@
-== Test Expert
+== Test Expert ==
 
 There is a test expert advisor in
 [[OTPyTestPikaEA.mq4|https://github.com/OpenTrading/OTMql4AMQP/raw/master/MQL4/Experts/OTMql4/OTPyTestPikaEA.mq4]]

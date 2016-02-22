@@ -1,4 +1,4 @@
-== Rabbit4Mt4
+== Rabbit4Mt4 ==
 
 There's a problem with the current approach of using [[OTMql4AMQP|Home]] which is
 [[RoundTripping|https://github.com/OpenTrading/OTMql4AMQP/wiki/RoundTripping]]:

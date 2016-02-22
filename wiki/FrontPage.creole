@@ -1,4 +1,4 @@
-== OTMql4AMQP - AMQP bindings for MQL4 Python
+== OTMql4AMQP - AMQP bindings for MQL4 Python ==
 
 https://github.com/OpenTrading/OTMql4AMQP/
 
@@ -36,7 +36,7 @@ the Windows version, and the AMQP server version and version of the Pika.**
 This code is known to run under Linux Wine (1.7.x), so this project
 bridges Metatrader to RabbitMQ under Linux.
 
-=== Installation
+=== Installation ===
 
 For the moment there is no installer: just {{{git clone}}} or download the
 zip from github.com and unzip into an empty directory. Then recursively copy
@@ -55,7 +55,7 @@ Look at the {{{OnTick}} and {{{OnTimer}}} functions of {{{OTPyTestPikaEA.mq4}}}
 to see how the EA works to send and receive messages from
 [[OTCmd2|https://github.com/OpenTrading/OpenTrader/wiki/DocOTCmd2]] .
 
-=== Project
+=== Project ===
 
 Please file any bugs in the 
 [[issue tracker|https://github.com/OpenTrading/OTMql4AMQP/issues]] .

@@ -1,4 +1,4 @@
-== RabbitMQ Server
+== RabbitMQ Server ==
 
 You must have a RabbitMQ server running to use this software.
 See http://rabbitmq.org

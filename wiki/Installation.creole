@@ -1,5 +1,5 @@
 
-== Installation
+== Installation ==
 
 In general, recusively copy everything in the {{{MQL4}}} directory
 to your {{{c:\Program Files\[metatrader directory]\MQL4}}} directory.

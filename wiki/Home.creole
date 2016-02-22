@@ -1,4 +1,4 @@
-Welcome to the OTMql4AMQP wiki!
+Welcome to the OTMql4AMQP project!
 
 This project allows the OpenTrading Metatrader-Python bridge
 (https://github.com/OpenTrading/OTMql4Py/)
