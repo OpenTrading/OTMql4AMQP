@@ -33,7 +33,7 @@ The project wiki should be open for editing by anyone logged into GitHub:
 **Please report any system it works or doesn't work on in the wiki:
 include the Metatrader build number, the origin of the metatrader exe,
 the Windows version, and the AMQP server version and version of the Pika.**
-This code in known to run under Linux Wine (1.7.x), so this project
+This code is known to run under Linux Wine (1.7.x), so this project
 bridges Metatrader to RabbitMQ under Linux.
 
 === Installation

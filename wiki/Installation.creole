@@ -6,17 +6,9 @@ to your {{{c:\Program Files\[metatrader directory]\MQL4}}} directory.
 
 This is the same as making the following 4 directories if they don't aleady exist:
 * {{{c:\Program Files\[metatrader directory]\MQL4\Experts\OTMql4}}}
-* {{{c:\Program Files\[metatrader directory]\MQL4\Include\OTMql4}}}
-* {{{c:\Program Files\[metatrader directory]\MQL4\Libraries\OTMql4}}}
 * {{{c:\Program Files\[metatrader directory]\MQL4\Python\OTMql427}}}
 and then copying:
 {{{
-MQL4\Include\OTMql4\*.mqh
-=> c:\Program Files\[metatrader directory]\MQL4\Include\OTMql4
-
-MQL4\Libraries\OTMql4\*.mqh
-=> c:\Program Files\[metatrader directory]\MQL4\Libraries\OTMql4
-
 MQL4\Experts\OTMql4\*.mq4 
 => c:\Program Files\[metatrader directory]\MQL4\Experts\OTMql4
 
