@@ -1,3 +1,8 @@
+commit 69fd8a6f261253ded4dd6658d4aa887f06f66928
+Date:   Thu Feb 25 15:06:56 2016 +0200
+
+    Added OTPyAMQPTest.mq4
+
 commit 11667c7031d2af601b9c0ddc39e6df9b1768cb7d
 Date:   Tue Feb 23 05:15:54 2016 +0200
 
