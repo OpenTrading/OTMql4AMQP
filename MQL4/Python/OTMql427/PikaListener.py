@@ -23,19 +23,8 @@ from OTMql427.SimpleFormat import lKNOWN_TOPICS
 if True:
     eCALLME_IMPORT_ERROR = "PikaCallme disabled "
     PikaCallme = None
-else:
-    # The callme server is optional and may not be installed.
-    # But it might be a whole lot of fun it it works.
-    # It has prerequisities: kombu httplib2 amqp
-    try:
-        import PikaCallme
-        from Mt4SafeEval import sPySafeEval
-        eCALLME_IMPORT_ERROR = ""
-    except ImportError as e:
-        eCALLME_IMPORT_ERROR = "Failed to import PikaCallme: " + str(e)
-        PikaCallme = None
 
-from OTLibLog import vError, vWarn, vInfo, vDebug, vTrace
+from OTMql427.OTLibLog import vError, vWarn, vInfo, vDebug, vTrace
 oLOG = logging
 
 

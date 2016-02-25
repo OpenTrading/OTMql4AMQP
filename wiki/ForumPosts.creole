@@ -1,0 +1,5 @@
+
+=== Femto Trader ===
+
+http://forum.worldwide-invest.org/mql-programming/21883-messaging-queue-amqp-rabbitmq-zeromq-mt4-2.html
+

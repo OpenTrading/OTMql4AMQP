@@ -33,35 +33,13 @@ our ZeroMQ bridge, <a href="https://github.com/OpenTrading/OTMql4Zmq/">https://g
 
 <p><strong>This is a work in progress - a developers' pre-release version.</strong></p>
 
-<p>It works on builds &gt; 6xx, but the documentation of the wiring up<br />
-of an asnychronous event loop under Python still needs to be done,<br />
-as well as more tests and testing on different versions.<br />
-Only Python 2.7.x is supported.</p>
+<p>It works on builds &gt; 6xx; only Python 2.7.x is supported.</p>
 
-<p>The project wiki should be open for editing by anyone logged into GitHub:<br />
-**Please report any system it works or doesn't work on in the wiki:<br />
-include the Metatrader build number, the origin of the metatrader exe,<br />
-the Windows version, and the AMQP server version and version of the Pika.**<br />
-This code is known to run under Linux Wine (1.7.x), so this project<br />
-bridges Metatrader to RabbitMQ under Linux.</p>
-
-<h3>Installation</h3>
-
-<p>For the moment there is no installer: just <tt>git clone</tt> or download the<br />
-zip from github.com and unzip into an empty directory. Then recursively copy<br />
-the folder MQL4 over the MQL4 folder of your Metatrader installation. It will<br />
-not overwrite any Mt4 system files; if it overwrites any OTMql4Py files,<br />
-the files are in fact identical (e.g. <tt>__init__.py</tt>). See<br />
-<a href="Installation">https://github.com/OpenTrading/OpenTrader/wiki/Installation</a> .</p>
-
-<p>Attach the<br />
-<a href="OTPyTestPikaEA.mq4">https://github.com/OpenTrading/OTMql4AMQP/raw/master/MQL4/Experts/OTMql4/OTPyTestPikaEA.mq4</a><br />
-EA to a chart and make sure it's working; look at the Experts log in Mt4<br />
-to see messages of success.</p>
-
-<p>Look at the <tt>OnTick}} and {{{OnTimer</tt> functions of <tt>OTPyTestPikaEA.mq4</tt><br />
-to see how the EA works to send and receive messages from<br />
-<a href="OTCmd2">https://github.com/OpenTrading/OpenTrader/wiki/DocOTCmd2</a> .</p>
+<p>There is now an installer in the Releases section on github.com: see<br />
+<a href="https://github.com/OpenTrading/OTMql4Py/wiki/Installation">https://github.com/OpenTrading/OTMql4Py/wiki/Installation</a><br />
+If you are on a 64bit machine, we use 32bit installs even on 64bit machines,<br />
+because Metatrader in a 32bit application; see<br />
+<a href="https://github.com/OpenTrading/OTMql4Py/wiki/Python32Or64Bit">https://github.com/OpenTrading/OTMql4Py/wiki/Python32Or64Bit</a></p>
 
 <h3>Project</h3>
 
@@ -72,7 +50,13 @@ to see how the EA works to send and receive messages from<br />
 <a href="https://github.com/OpenTrading/OTMql4AMQP/wiki/Home">https://github.com/OpenTrading/OTMql4AMQP/wiki/Home</a><br />
 It's better to use the wiki for knowledge capture, and then we can pull<br />
 the important pages back into the documentation in the share/doc directory.<br />
-You will need to be signed into github.com to see or edit in the wiki.</p>
+You will need to be signed into github.com to edit in the wiki.</p>
+
+<p>**Please report any system it works or doesn't work on in the wiki:<br />
+include the Metatrader build number, the origin of the metatrader exe,<br />
+the Windows version, and the AMQP server version and version of the Pika.**<br />
+This code is known to run under Linux Wine (&gt;=1.7.x), so this project<br />
+bridges Metatrader to RabbitMQ under Linux.</p>
 
 <p>You may want to also look at:<br />
 <a href="https://github.com/OpenTrading/OpenTrader">https://github.com/OpenTrading/OpenTrader</a><br />

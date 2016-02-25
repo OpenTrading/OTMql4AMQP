@@ -1,3 +1,38 @@
+commit 11667c7031d2af601b9c0ddc39e6df9b1768cb7d
+Date:   Tue Feb 23 05:15:54 2016 +0200
+
+    Updated documentation
+
+commit 8cd878ec634143bc45538644b606b7a96f585b2d
+Date:   Mon Feb 22 21:57:28 2016 +0200
+
+    Updated documentation
+
+commit 886d833d7fa1b486cbc89a6f419b3e8e0c335645
+Date:   Mon Feb 22 21:44:45 2016 +0200
+
+    Updated documentation
+
+commit 407204b2e4a050372ecd92de77fef5f7cb3c5f86
+Date:   Mon Feb 22 16:18:25 2016 +0200
+
+    Updated documentation
+
+commit 2ae100b7c0ffa8171d5637a608e030be14287134
+Date:   Sat Feb 20 07:38:58 2016 +0200
+
+    Updated documentation
+
+commit 0b24b7cbb10e9deea213f8b3bdca17213b25bb07
+Date:   Sat Aug 22 07:03:08 2015 +0300
+
+    Github creole bugs workaround
+
+commit 1cc63c1d0a9df09ad937edb44133e1484dc0164b
+Date:   Sat Aug 22 07:00:31 2015 +0300
+
+    Github creole bugs workaround
+
 commit e5aff8a5c6c6acff36259f92decff81c78f388bf
 Date:   Sat Aug 22 06:55:09 2015 +0300
 

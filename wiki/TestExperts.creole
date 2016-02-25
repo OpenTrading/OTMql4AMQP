@@ -11,7 +11,7 @@ python OTMql427/PikaListener.py "#"
 }}}
 
 You can select which RabbitMQ messages you want to subscribe to from
-one or more of: {{{ticks bars timer retval`}}}
+one or more of: {{{ticks bars timer retval}}}
 
 To see just ticks, do
 {{{
@@ -23,9 +23,9 @@ python OTMql427/PikaListener.py "tick.#" "timer.#"
 }}}
 
 Read the [[RabbitMQ|http://www.rabbitmq.org]] documentation for further
-details of using {{{#}}} and {{{*`
+details of using {{{#}}} and {{{*}}}
 to select the messages you are interested in; you can select by
-type of message, the currency pair, period, the hex value of the {{{ChartID`.
+type of message, the currency pair, period, the hex value of the {{{ChartID}}}.
 
 The interval for timer events can be set when you attach the expert:
 {{{
@@ -39,17 +39,28 @@ to a remote client on every bar. Change it to suit your own needs.
 You can have many experts running on many charts. There is only one
 {{{Pika.connection.Connection}}} object, and it is shared by all charts.
 The total number of charts using the connection is kept in the global variable
-{{{fPY_PIKA_CONNECTION_USERS}}}`. When the last expert is removed, this
+{{{fPY_PIKA_CONNECTION_USERS}}}. When the last expert is removed, this
 number drops to 0, and the Connection is shut down.
 
 You should always remove any {{{OTMql4Py}}} experts before you shut down Mt4.
-It may not initialize properly if you start Mt4 with an {{{OTMql4Py`
+It may not initialize properly if you start Mt4 with an {{{OTMql4Py}}}
 expert already attached. You may have to remove the expert and restart
 Mt4 if it does not initialize properly.
 
 Specifically, if you load an {{{OTMql4Py}}} expert and the Mt4 log shows
-a message about {{{exceptions.SystemError`, it means that the Python
+a message about {{{exceptions.SystemError}}}, it means that the Python
 DLL did not load properly, and you **must** restart if you want to use
 an {{{OTMql4Py}}} expert. You should get a pop-up Alert from Mt4 to alert
 you of this.
+
+
+=== Installation ===
+
+For the moment there is no installer: just {{{git clone}}} or download the
+zip from github.com and unzip into an empty directory. Then recursively copy
+the folder MQL4 over the MQL4 folder of your Metatrader installation. It will
+not overwrite any Mt4 system files; if it overwrites any OTMql4Py files,
+the files are in fact identical (e.g. {{{__init__.py}}}). See
+[[Installation|https://github.com/OpenTrading/OpenTrader/wiki/Installation]] .
+
 

@@ -139,20 +139,20 @@ int OnInit() {
             uRetval = "PikaChart.PikaChart errored: "  + uRetval;
             vWarn(uRetval);
         }
-	vInfo("Creating the connection to RabbitMQ server: make sure its running");
-	uRetval = uPySafeEval(uCHART_ID+".oCreateConnection()");
-	if (StringFind(uRetval, "ERROR:", 0) >= 0) {
-	    // This is where ProbableAuthenticationError is raised
-	    // ProbableAuthenticationError is raised even if there is not a problem
-	    // and you just have to restart the rabbitmq server. YMMV
-	    uRetval = "PANIC: oCreateConnection errored: (restart the rabbitmq server?)"  + uRetval;
+        vInfo("Creating the connection to RabbitMQ server: make sure its running");
+        uRetval = uPySafeEval(uCHART_ID+".oCreateConnection()");
+        if (StringFind(uRetval, "ERROR:", 0) >= 0) {
+            // This is where ProbableAuthenticationError is raised
+            // ProbableAuthenticationError is raised even if there is not a problem
+            // and you just have to restart the rabbitmq server. YMMV
+            uRetval = "PANIC: oCreateConnection errored: (restart the rabbitmq server?)"  + uRetval;
             vPanic(uRetval);
             return(-3);
-	} else {
-	    // it will return a strings that is a repr of the oConnection
-	    uRetval = "oCreateConnection returned"  + uRetval;
-	    vInfo(uRetval);
-	}
+        } else {
+            // it will return a strings that is a repr of the oConnection
+            uRetval = "oCreateConnection returned"  + uRetval;
+            vInfo(uRetval);
+        }
 
         iCONNECTION = iPyEvalInt("id(" +uCHART_ID +".oConnection)");
         if (iCONNECTION <= 0) {
@@ -165,7 +165,7 @@ int OnInit() {
         }
         GlobalVariableTemp("fPyPikaConnection");
         GlobalVariableSet("fPyPikaConnection", iCONNECTION);
-	// set the comment after the panics
+        // set the comment after the panics
         Comment(uCHART_ID);
 
         if (iCALLME_TIMEOUT > 0) {
@@ -174,7 +174,7 @@ int OnInit() {
             if (StringFind(uRetval, "ERROR:", 0) >= 0) {
                 uRetval = "WARN: zStartCallmeServer failed: "  + uRetval;
                 vWarn(uRetval);
-            } else if (uRetval == "") {
+            } else if (StringCompare(uRetval, "") == 0) {
                 vInfo("INFO: zStartCallmeServer succeeded");
             } else {
                 uRetval = "WARN: eStartCallmeServer returned"  + uRetval;
@@ -185,7 +185,7 @@ int OnInit() {
         fPY_PIKA_CONNECTION_USERS = 1.0;
 
     }
-    
+
     EventSetTimer(iTIMER_INTERVAL_SEC);
     GlobalVariableSet("fPyPikaConnectionUsers", fPY_PIKA_CONNECTION_USERS);
     vDebug("OnInit: fPyPikaConnectionUsers=" + fPY_PIKA_CONNECTION_USERS);
@@ -212,38 +212,37 @@ string ePyPikaPopQueue(string uChartId) {
         uOutput = zOTLibProcessCmd(uInput);
         // vTrace("ePyPikaPopQueue: Processing popped exec message: " + uOutput);
         if (StringFind(uOutput, "void|", 0) >= 0) {
-	    // if the command is void| - dont return a value
-	} else if ((StringFind(uInput, "cmd|", 0) >= 0) || (StringFind(uInput, "exec|", 0) >= 0)) {
+            // if the command is void| - dont return a value
+        } else if ((StringFind(uInput, "cmd|", 0) >= 0) || (StringFind(uInput, "exec|", 0) >= 0)) {
             // if the command is cmd|  - return a value as a retval|
             // We want the sMark from uInput instead of uTime
             // but we will do than in Python
-	    // WE INCLUDED THE SMARK
-	    if (uOutput == "") {
-		// if the retval is "" its an error; return error|
-		vWarn("ePyPikaPopQueue: " +"UNHANDELED: " +uOutput);
-		uOutput = "00000000|error|" +uInput;
-	    } else if (StringFind(uInput, "|", 0) < 0) {
-		uOutput = "ERROR EXPECTED | in: " +uInput;
-		vWarn("ePyPikaPopQueue: " +uOutput);
-		return(uOutput);
-	    }
+            // WE INCLUDED THE SMARK
+            if (uOutput == "") {
+                // if the retval is "" its an error; return error|
+                vWarn("ePyPikaPopQueue: " +"UNHANDELED: " +uOutput);
+                uOutput = "00000000|error|" +uInput;
+            } else if (StringFind(uInput, "|", 0) < 0) {
+                uOutput = "ERROR EXPECTED | in: " +uInput;
+                vWarn("ePyPikaPopQueue: " +uOutput);
+                return(uOutput);
+            }
             uInfo = zOTLibSimpleFormatRetval("retval", uCHART_ID, 0, "", uOutput);
             vDebug("ePyPikaPopQueue: retvaling " +uInfo +" from: " +uOutput);
             eReturnOnSpeaker(uCHART_ID, "retval", uInfo, uInput);
             return("");
-	} else {
-	    vWarn("ePyPikaPopQueue: unrecognized " +uInput + " -> " +uOutput);
-	}
+        } else {
+            vWarn("ePyPikaPopQueue: unrecognized " +uInput + " -> " +uOutput);
+        }
     }
     return("");
 }
 
-/*
-OnTimer is called every iTIMER_INTERVAL_SEC (10 sec.)
-which allows us to use Python to look for Pika inbound messages,
-or execute a stack of calls from Python to us in Metatrader.
-*/
 void OnTimer() {
+    //  OnTimer is called every iTIMER_INTERVAL_SEC (10 sec.)
+    //  which allows us to use Python to look for Pika inbound messages,
+    //  or execute a stack of calls from Python to us in Metatrader.
+    //
     string uRetval="";
     string uMessage;
     string uMess, uInfo;
@@ -253,7 +252,7 @@ void OnTimer() {
     /* timer events can be called before we are ready */
     if (GlobalVariableCheck("fPyPikaConnectionUsers") == false) {
         vWarn("OnTimer: no fPyPikaConnectionUsers");
-	return;
+        return;
     }
     iCONNECTION = MathRound(GlobalVariableGet("fPyPikaConnection"));
     if (iCONNECTION < 1) {
@@ -269,7 +268,7 @@ void OnTimer() {
     uInfo = "json|" + jOTTimerInformation();
     uMess  = zOTLibSimpleFormatTimer(uType, uCHART_ID, 0, uTime, uInfo);
     eSendOnSpeaker(uCHART_ID, "timer", uMess);
-    
+
     // eHeartBeat first to see if there are any commands
     uRetval = uPySafeEval(uCHART_ID+".eHeartBeat(0)");
     if (StringFind(uRetval, "ERROR: ", 0) >= 0) {
@@ -286,6 +285,9 @@ void OnTimer() {
 }
 
 void OnTick() {
+    //  OnTick events are generated every tick.
+    //  If the market is closed, there will be no ticks.
+    //
     static datetime tNextbartime;
     bool bNewBar=false;
     string uType;
@@ -313,12 +315,12 @@ void OnTick() {
         iBAR += 1; // = Bars - 100
         iTICK = 0;
         tNextbartime = tTime;
-	uInfo = "json|" + jOTBarInformation(uSYMBOL, Period(), 0) ;
+        uInfo = "json|" + jOTBarInformation(uSYMBOL, Period(), 0) ;
         uType = "bar";
         uMess  = zOTLibSimpleFormatBar(uType, uCHART_ID, 0, uTime, uInfo);
     } else {
         iTICK += 1;
-	uInfo = "json|" + jOTTickInformation(uSYMBOL, Period()) ;
+        uInfo = "json|" + jOTTickInformation(uSYMBOL, Period()) ;
         uType = "tick";
         uMess  = zOTLibSimpleFormatTick(uType, uCHART_ID, 0, uTime, uInfo);
     }

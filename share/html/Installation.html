@@ -7,13 +7,38 @@
 </head>
 <body>
 <!-- <h1>Installation</h1> -->
-<h2>Installation</h2>
+<p>If you are on a 64bit machine, see <a href="Python32Or64Bit">Python32Or64Bit</a><br />
+before going any farther.</p>
+
+<h3>Binary Installer</h3>
+
+<p>There is now an installer in the Releases section on github:<br />
+<a href="https://github.com/OpenTrading/OTMql4AMQP/releases">https://github.com/OpenTrading/OTMql4AMQP/releases</a><br />
+It's a simple installer that asks where you want the software installed,<br />
+and the location of your personal <tt>AppData</tt> Metatrader directory,<br />
+and copies the files to the right places; it installs a copy of the<br />
+documentation too.  Usually you could just overwrite old releases with<br />
+new ones, but for now, we recommend uninstalling old releases before<br />
+installing new ones in case the filenames or locations have changed.</p>
+
+<p>If you have a recent (2016) release of Mt4, the location of your personal<br />
+Metatrader directory to install into is no longer the <tt>Program Files</tt><br />
+directory (something like <tt>c:\Program Files\MetaTrader 4 Terminal</tt>)<br />
+but rather your personal <tt>AppData</tt> directory (something like<br />
+<tt>c:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\LONGHEXNAME</tt>).</p>
+
+<p>When you start Metatrader, look for the <tt>Data Directory:</tt> message<br />
+in the Journal log.  Usually there are 2 possibilities: if you have a<br />
+subdirectory of your <tt>Users\AppData\Roaming\MetaQuotes\Terminal</tt> and<br />
+then a long hexadecimal name, use it. Otherwise look in <tt>c:\Program Files</tt><br />
+for the <tt>Metatrader directory</tt>.  Use the Browse button to select it,<br />
+then click Next.</p>
 
 <h3>Install from Source</h3>
 
-<p>Alernatively, you can just "git clone" or download the zip from github.com<br />
+<p>You can just "git clone" or download the zip from github.com<br />
 and unzip into an empty directory. Then recursively copy the folder<br />
-<tt>MQL4</tt> over the <tt>MQL4</tt> folder of your personal <tt>AppData...</tt> directory<br />
+<tt>MQL4</tt> over the <tt>MQL4</tt> folder in your personal <tt>AppData...</tt> directory<br />
 (something like<br />
 <tt>c:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\LONGHEXNANE</tt>).<br />
 It will not overwrite any system files, and keeps its files in subdirectories<br />
@@ -22,16 +47,25 @@ called <tt>OTMql4</tt>.</p>
 <h3>Prerequisites</h3>
 
 <p>This project requires the prior installation of our<br />
-MQL4 trading library: <a href="https://github.com/OpenTrading/OTMql4Lib.">https://github.com/OpenTrading/OTMql4Lib.</a><br />
+MQL4 Python bridge: <a href="https://github.com/OpenTrading/OTMql4Py">https://github.com/OpenTrading/OTMql4Py</a> .<br />
 Again, <tt>git clone</tt> this from <a href="https://github.com">https://github.com</a> and recursively copy<br />
-it's folder MQL4 over the MQL4 folder of your personal Metatrader directory.</p>
+it's folder MQL4 over the MQL4 folder of your Metatrader installation,<br />
+or use the binary in <a href="https://github.com/OpenTrading/OTMql4Py/releases">https://github.com/OpenTrading/OTMql4Py/releases</a> .<br />
+If you are on a 64bit machine, we use 32bit installs even on 64bit machines,<br />
+because Metatrader in a 32bit application; see<br />
+<a href="https://github.com/OpenTrading/OTMql4Py/wiki/Python32Or64Bit">https://github.com/OpenTrading/OTMql4Py/wiki/Python32Or64Bit</a></p>
 
-<p>This project requires the prior installation of our MQL4<br />
-Python bridge: <a href="https://github.com/OpenTrading/OTMql4Py.">https://github.com/OpenTrading/OTMql4Py.</a><br />
-Again, <tt>git clone</tt> this from <a href="https://github.com">https://github.com</a> and recursively copy<br />
-it's folder MQL4 over the MQL4 folder of your Metatrader installation.</p>
+<p>This project requires the prior installation of <br />
+[pika|http://pypi.python.org/pypi/pika]] .<br />
+Any recent version should do; we've tested against<br />
+<a href="http://pypi.python.org/packages/source/p/pika/pika-0.10.0.tar.gz">http://pypi.python.org/packages/source/p/pika/pika-0.10.0.tar.gz</a></p>
 
-<p>One day we'll make an installer, but for now, you must install the three<br />
-projects manually, and if you update the code via <tt>git pull</tt>, be<br />
-sure to update all three, as they are usually checked in together.</p></body>
+<p>You may have to set the environment variable PYTHONHOME to the root<br />
+of your Python installation (e.g. <tt>c:\Python27</tt> ).</p>
+
+<p>Attach the<br />
+<a href="OTPyTestPikaEA.mq4">https://github.com/OpenTrading/OTMql4AMQP/raw/master/MQL4/Experts/OTMql4/OTPyTestPikaEA.mq4</a><br />
+EA to a chart and make sure it's working; look at the Experts log in Mt4<br />
+to see messages of success. See <a href="TestExperts.html">TestExperts</a> for a description of<br />
+Look at the <tt>OnTick</tt> and <tt>OnTimer</tt> functions of <tt>OTPyTestPikaEA.mq4</tt> .</p></body>
 </html>
